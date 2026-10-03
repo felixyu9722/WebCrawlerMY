@@ -1,0 +1,4 @@
+# Ignore screen recording video
+*.mp4
+.DS_Store
+Thumbs.db

@@ -1,0 +1,4562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Crawler 拟物化网络爬虫 | 马来西亚数码资讯实验</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #05070b;
+      --bg-surface: #0a0e16;
+      --bg-card: #101521;
+      --border-color: #1a2233;
+      --text-main: #d3dfed;
+      --text-muted: #798b9f;
+      --accent-cyan: #00f0ff;
+      --accent-magenta: #ff007f;
+      --accent-purple: #b522ff;
+      --accent-blue: #3d7eff;
+      --accent-orange: #ff9100;
+      --accent-lime: #39ff14;
+      --accent-red: #ff1e42;
+      --code-font: 'JetBrains Mono', monospace;
+      --ui-font: 'Outfit', 'Noto Sans SC', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--ui-font);
+      line-height: 1.72;
+      overflow-x: hidden;
+      position: relative;
+      min-height: 100vh;
+    }
+
+    ::selection {
+      background: rgba(255, 0, 127, 0.45);
+      color: #ffffff;
+    }
+
+    /* 赛博网格背景微光 */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 26px 26px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* 顶层透明 Canvas：专门渲染侧边大型发光蜘蛛网、机械蜘蛛、飞入昆虫、IK肢足与挂网药丸 */
+    #crawler-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 90;
+    }
+
+    /* ========== 自动收藏 / 折叠的控制面板 (HUD) ========== */
+    .hud-wrapper {
+      position: fixed;
+      top: 18px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      font-family: var(--code-font);
+    }
+
+    /* 折叠后的迷你徽章 */
+    .hud-mini-pill {
+      background: rgba(10, 14, 22, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(0, 240, 255, 0.25);
+      border-radius: 20px;
+      padding: 6px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--accent-cyan);
+      user-select: none;
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .hud-mini-pill:hover {
+      background: rgba(16, 22, 34, 0.95);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 4px 22px rgba(0, 240, 255, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .hud-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-lime);
+      box-shadow: 0 0 8px var(--accent-lime);
+      animation: hudPulse 1.8s infinite;
+    }
+
+    @keyframes hudPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    /* 展开后的控制面板 */
+    .hud-expanded-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 340px;
+      background: rgba(10, 14, 22, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 240, 255, 0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px) scale(0.96);
+      transform-origin: top right;
+      transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .hud-wrapper.is-open .hud-expanded-panel {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .hud-wrapper.is-open .hud-mini-pill {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.9);
+    }
+
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+
+    .hud-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 15px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .hud-close-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .hud-section-title {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin: 8px 0 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 速度调节栏 */
+    .speed-control-box {
+      background: rgba(18, 24, 36, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin-bottom: 8px;
+    }
+
+    .speed-slider {
+      width: 100%;
+      height: 4px;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+      margin: 6px 0 4px;
+    }
+
+    .speed-btn-row {
+      display: flex;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+
+    .speed-mini-btn {
+      background: rgba(26, 35, 52, 0.7);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-family: var(--code-font);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .speed-mini-btn:hover, .speed-mini-btn.active {
+      background: rgba(0, 240, 255, 0.25);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* 蜘蛛尺寸选择器 */
+    .hud-size-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+
+    .size-btn {
+      background: rgba(22, 30, 44, 0.6);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 5px 6px;
+      border-radius: 5px;
+      font-size: 10.5px;
+      font-family: var(--code-font);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .size-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    .size-btn.active {
+      background: rgba(0, 240, 255, 0.25);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+      font-weight: bold;
+    }
+
+    /* 蜘蛛品种选择器 */
+    .species-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+
+    .species-btn {
+      background: rgba(22, 30, 44, 0.6);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 3px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-family: var(--code-font);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .species-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    .species-btn.active {
+      background: rgba(0, 240, 255, 0.2);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+      font-weight: bold;
+    }
+
+    .species-icon {
+      font-size: 15px;
+    }
+
+    /* 互动模式网格 */
+    .hud-mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+
+    .hud-btn {
+      background: rgba(22, 30, 44, 0.6);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-family: var(--code-font);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .hud-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    .hud-btn.active {
+      background: rgba(0, 240, 255, 0.25);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+      font-weight: bold;
+    }
+
+    .hud-toolbar {
+      display: flex;
+      gap: 5px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hud-info-tip {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    /* 侧边蛛网储藏食物状态指示 (利用左侧黑空位) */
+    .web-lair-widget {
+      position: fixed;
+      bottom: 106px;
+      left: 24px;
+      z-index: 120;
+      background: rgba(10, 14, 22, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 0, 127, 0.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(255, 0, 127, 0.15);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-family: var(--code-font);
+      font-size: 11px;
+      pointer-events: auto;
+      transition: all 0.3s;
+    }
+
+    .web-lair-widget:hover {
+      border-color: var(--accent-magenta);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 0, 127, 0.3);
+    }
+
+    .web-lair-title {
+      color: var(--accent-magenta);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .web-lair-stat {
+      color: var(--text-muted);
+      font-size: 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* 左下角赛博音乐播放器卡片 (用户指令：左下角显示 music 可adjust大小声) */
+    .cyber-music-widget {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 120;
+      background: rgba(10, 14, 22, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 240, 255, 0.15);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-family: var(--code-font);
+      font-size: 11px;
+      pointer-events: auto;
+      transition: all 0.3s;
+      min-width: 236px;
+    }
+
+    .cyber-music-widget:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+
+    .music-widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .music-title-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    /* 律动音波均衡条 */
+    .music-visualizer {
+      display: flex;
+      align-items: flex-end;
+      gap: 2.5px;
+      height: 12px;
+    }
+
+    .music-bar {
+      width: 2.5px;
+      height: 3px;
+      background: var(--accent-cyan);
+      border-radius: 1px;
+      transition: height 0.15s ease;
+    }
+
+    .cyber-music-widget.is-playing .music-bar:nth-child(1) { animation: musicWave 0.7s infinite alternate ease-in-out; }
+    .cyber-music-widget.is-playing .music-bar:nth-child(2) { animation: musicWave 0.5s infinite alternate ease-in-out 0.15s; }
+    .cyber-music-widget.is-playing .music-bar:nth-child(3) { animation: musicWave 0.8s infinite alternate ease-in-out 0.3s; }
+    .cyber-music-widget.is-playing .music-bar:nth-child(4) { animation: musicWave 0.6s infinite alternate ease-in-out 0.2s; }
+    .cyber-music-widget.is-playing .music-bar:nth-child(5) { animation: musicWave 0.9s infinite alternate ease-in-out 0.4s; }
+
+    @keyframes musicWave {
+      0% { height: 3px; opacity: 0.5; }
+      100% { height: 12px; opacity: 1; }
+    }
+
+    .music-controls-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .music-btn {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.32);
+      color: var(--text-main);
+      width: 26px;
+      height: 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+
+    .music-btn:hover {
+      background: rgba(0, 240, 255, 0.28);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.35);
+    }
+
+    .music-vol-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .music-vol-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: #1a2538;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .music-vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      cursor: pointer;
+      border: none;
+      transition: transform 0.15s;
+    }
+
+    .music-vol-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+    }
+
+    .music-vol-label {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* 页面排版主容器 */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 24px 140px;
+      position: relative;
+      z-index: 10;
+    }
+
+    @media (max-width: 1360px) {
+      .container {
+        max-width: 720px;
+        margin-left: max(110px, calc(50vw - 360px - 70px));
+        margin-right: auto;
+      }
+    }
+
+    /* 顶栏新闻抬头 */
+    .site-header {
+      margin-bottom: 34px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 22px;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tag-chip {
+      font-family: var(--code-font);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tag-cyan {
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      color: var(--accent-cyan);
+    }
+
+    .tag-magenta {
+      background: rgba(255, 0, 127, 0.1);
+      border: 1px solid rgba(255, 0, 127, 0.35);
+      color: var(--accent-magenta);
+    }
+
+    .tag-lime {
+      background: rgba(57, 255, 20, 0.1);
+      border: 1px solid rgba(57, 255, 20, 0.35);
+      color: var(--accent-lime);
+    }
+
+    h1.page-title {
+      font-size: 2.15rem;
+      font-weight: 800;
+      line-height: 1.25;
+      color: #ffffff;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle-my {
+      font-size: 1.15rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .header-meta {
+      display: flex;
+      gap: 20px;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-family: var(--code-font);
+    }
+
+    /* 新闻文章区块 */
+    .article-section {
+      background: rgba(10, 14, 22, 0.55);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+      position: relative;
+      transition: border-color 0.25s;
+    }
+
+    .article-section:hover {
+      border-color: rgba(0, 240, 255, 0.3);
+    }
+
+    .article-heading {
+      font-size: 1.35rem;
+      color: #ffffff;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .article-heading-my {
+      font-size: 1.02rem;
+      color: #9cb5db;
+      margin-bottom: 14px;
+      font-weight: 500;
+      border-left: 3px solid var(--accent-cyan);
+      padding-left: 10px;
+    }
+
+    p.paragraph-zh {
+      color: #d1dce9;
+      font-size: 15px;
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    p.paragraph-ms {
+      color: #8b9eb7;
+      font-size: 13.8px;
+      margin-bottom: 16px;
+      text-align: justify;
+      background: rgba(6, 9, 14, 0.5);
+      padding: 10px 14px;
+      border-radius: 6px;
+      border-left: 2px solid var(--accent-magenta);
+    }
+
+    /* 可供蜘蛛抓取与交互的文字实体 */
+    .crawled-target {
+      position: relative;
+      display: inline-block;
+      padding: 1px 6px;
+      margin: 1px 2px;
+      font-family: var(--code-font);
+      font-size: 0.9em;
+      cursor: crosshair;
+      border-radius: 3px;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+
+    .box-orange {
+      border: 1px solid rgba(255, 145, 0, 0.7);
+      background: rgba(255, 145, 0, 0.08);
+      color: #ffaa33;
+    }
+    .box-orange:hover {
+      background: rgba(255, 145, 0, 0.25);
+      box-shadow: 0 0 10px rgba(255, 145, 0, 0.5);
+      color: #fff;
+    }
+
+    .box-blue {
+      border: 1px solid rgba(61, 126, 255, 0.7);
+      background: rgba(61, 126, 255, 0.08);
+      color: #70a1ff;
+    }
+    .box-blue:hover {
+      background: rgba(61, 126, 255, 0.25);
+      box-shadow: 0 0 10px rgba(61, 126, 255, 0.5);
+      color: #fff;
+    }
+
+    .box-purple {
+      border: 1px solid rgba(181, 34, 255, 0.7);
+      background: rgba(181, 34, 255, 0.08);
+      color: #d175ff;
+    }
+    .box-purple:hover {
+      background: rgba(181, 34, 255, 0.25);
+      box-shadow: 0 0 10px rgba(181, 34, 255, 0.5);
+      color: #fff;
+    }
+
+    .box-cyan {
+      border: 1px solid rgba(0, 240, 255, 0.5);
+      background: rgba(0, 240, 255, 0.08);
+      color: #5ce9ff;
+    }
+    .box-cyan:hover {
+      background: rgba(0, 240, 255, 0.25);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+      color: #fff;
+    }
+
+    .box-lime {
+      border: 1px solid rgba(57, 255, 20, 0.6);
+      background: rgba(57, 255, 20, 0.08);
+      color: #5eff48;
+    }
+
+    /* ==============================================================
+       蜘蛛抓取文字时的动态视觉特效套件 (Vibration, Wobble, Blur, Rainbow & Fireworks)
+       ============================================================== */
+
+    /* 1. 抓取中：格子包含文字高频震颤扭动特效 (Energy Resonance) */
+    @keyframes scanningBuzzJiggle {
+      0% { transform: translate(0, 0) scale(1.05); }
+      20% { transform: translate(-2px, 1px) scale(1.06) skewX(-2deg); }
+      40% { transform: translate(2px, -1.5px) scale(1.05) skewX(2deg); }
+      60% { transform: translate(-1.5px, -1px) scale(1.06) rotate(1deg); }
+      80% { transform: translate(1.5px, 1.5px) scale(1.05) rotate(-1deg); }
+      100% { transform: translate(0, 0) scale(1.05); }
+    }
+
+    .crawled-target.is-being-scanned {
+      animation: scanningBuzzJiggle 0.12s infinite linear !important;
+      outline: 2px solid #00f0ff !important;
+      outline-offset: 2px !important;
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.9), inset 0 0 10px rgba(255, 0, 127, 0.6) !important;
+      background: rgba(0, 240, 255, 0.28) !important;
+      color: #ffffff !important;
+      text-shadow: 0 0 8px #00f0ff, -1.5px 0 #ff007f, 1.5px 0 #00f0ff !important;
+      z-index: 10;
+    }
+
+    /* 2. 抓取完成瞬间：强力弹性爆震扭曲 (Capture Burst Wobble) */
+    @keyframes capturePopWobble {
+      0% { transform: scale(1); }
+      25% { transform: scale(1.32) rotate(3.5deg) skewX(-6deg); box-shadow: 0 0 28px #ff007f, 0 0 40px #00f0ff; }
+      50% { transform: scale(0.9) rotate(-3deg) skewX(5deg); }
+      75% { transform: scale(1.14) rotate(1.2deg); }
+      90% { transform: scale(0.98); }
+      100% { transform: scale(1); }
+    }
+
+    .crawled-target.captured-burst-wobble {
+      animation: capturePopWobble 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards !important;
+      z-index: 15;
+    }
+
+    /* 3. 样式 1：【格子包含文字持续扭动 + 赛博故障色散】(Continuous Box & Text Wobble) */
+    @keyframes liveBoxWobbleGlitch {
+      0%, 100% { transform: translateY(-1px) rotate(0deg) skewX(0deg); }
+      25% { transform: translateY(-2px) rotate(-1.5deg) skewX(-2.5deg); }
+      50% { transform: translateY(0.5px) rotate(1.2deg) skewX(2deg); }
+      75% { transform: translateY(-1.5px) rotate(-0.8deg) skewX(1deg); }
+    }
+
+    .crawled-target.scanned-preset-1 {
+      background: rgba(255, 0, 127, 0.38) !important;
+      border: 1.5px solid #ff007f !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      box-shadow: 0 0 16px rgba(255, 0, 127, 0.75) !important;
+      text-shadow: 1.5px 0 #00f0ff, -1.5px 0 #ff007f !important;
+      animation: liveBoxWobbleGlitch 2.2s ease-in-out infinite !important;
+      display: inline-block;
+    }
+
+    /* 4. 样式 2：【文字模糊不见 - 量子隐形幽灵态】(Quantum Ghost Blur & Vanish) */
+    @keyframes ghostBlurFloat {
+      0%, 100% { filter: blur(3.2px); opacity: 0.22; transform: scale(0.96); }
+      50% { filter: blur(4.5px); opacity: 0.12; transform: scale(0.93); }
+    }
+
+    .crawled-target.scanned-preset-2 {
+      background: rgba(0, 34, 51, 0.4) !important;
+      border: 1px dashed rgba(0, 240, 255, 0.35) !important;
+      color: #72a8c8 !important;
+      letter-spacing: 2px !important;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.8) !important;
+      animation: ghostBlurFloat 3s ease-in-out infinite !important;
+      cursor: help;
+    }
+    .crawled-target.scanned-preset-2:hover {
+      filter: blur(0.5px) !important;
+      opacity: 0.9 !important;
+      transition: 0.3s;
+    }
+
+    /* 5. 样式 3：【全息彩虹渐变流动】(Holographic Rainbow Dynamic Gradient) */
+    @keyframes rainbowShiftFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .crawled-target.scanned-preset-3 {
+      background: linear-gradient(90deg, #ff007f, #00f0ff, #39ff14, #ffaa00, #b522ff, #ff007f) !important;
+      background-size: 350% 100% !important;
+      animation: rainbowShiftFlow 4s linear infinite !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+      color: #ffffff !important;
+      font-weight: 800 !important;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.8) !important;
+    }
+
+    /* 6. 样式 4：【生化剧毒脉动】(Radioactive Lime Heartbeat Pulse) */
+    @keyframes limeElasticPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(57, 255, 20, 0.6); }
+      50% { transform: scale(1.05); box-shadow: 0 0 24px rgba(57, 255, 20, 0.95); }
+    }
+
+    .crawled-target.scanned-preset-4 {
+      background: rgba(57, 255, 20, 0.24) !important;
+      border: 2px solid #39ff14 !important;
+      color: #d6ffb8 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      text-transform: uppercase !important;
+      animation: limeElasticPulse 1.8s ease-in-out infinite !important;
+    }
+
+    /* 7. 样式 5：【太阳耀斑黄金爆发】(Solar Amber Flare & Double Border) */
+    .crawled-target.scanned-preset-5 {
+      background: rgba(255, 170, 0, 0.32) !important;
+      border: 2px double #ffaa00 !important;
+      color: #fff3cc !important;
+      font-weight: 800 !important;
+      box-shadow: 0 0 18px rgba(255, 170, 0, 0.85) !important;
+      letter-spacing: 0.8px !important;
+      transform: translateY(-1px);
+    }
+
+    /* 8. 样式 6：【高能紫晶倾斜切片】(Electric Violet Skew & Cyber Slice) */
+    .crawled-target.scanned-preset-6 {
+      background: rgba(181, 34, 255, 0.32) !important;
+      border-left: 3.5px solid #b522ff !important;
+      border-right: 3.5px solid #00f0ff !important;
+      border-top: 1px solid rgba(181, 34, 255, 0.5) !important;
+      border-bottom: 1px solid rgba(181, 34, 255, 0.5) !important;
+      color: #f7e6ff !important;
+      transform: skewX(-6deg) !important;
+      display: inline-block;
+      box-shadow: 0 0 16px rgba(181, 34, 255, 0.7) !important;
+    }
+
+    /* 9. 样式 7：【全息中空激光描边字】(Hollow Laser Wireframe & Faint Glass) */
+    .crawled-target.scanned-preset-7 {
+      background: rgba(0, 240, 255, 0.08) !important;
+      border: 1.5px solid #00f0ff !important;
+      color: transparent !important;
+      -webkit-text-stroke: 1.2px #00f0ff !important;
+      font-weight: 800 !important;
+      letter-spacing: 1px !important;
+      box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.25), 0 0 16px rgba(0, 240, 255, 0.6) !important;
+    }
+
+    /* 10. 样式 8：【深空黑洞红外解构消散】(Infrared Redaction & Ember Dissolve) */
+    @keyframes emberDissolveGlow {
+      0%, 100% { opacity: 0.3; filter: blur(1.8px); }
+      50% { opacity: 0.14; filter: blur(3px); }
+    }
+
+    .crawled-target.scanned-preset-8 {
+      background: rgba(255, 30, 66, 0.16) !important;
+      border: 1px dotted #ff1e42 !important;
+      color: #ff99a8 !important;
+      text-decoration: line-through !important;
+      text-shadow: 0 0 8px rgba(255, 30, 66, 0.8) !important;
+      animation: emberDissolveGlow 2.5s ease-in-out infinite !important;
+    }
+
+    /* 文献引用区块 */
+    .references-box {
+      background: #05080d;
+      border: 1px solid #141b28;
+      border-radius: 8px;
+      padding: 22px;
+      margin-top: 32px;
+    }
+
+    .ref-title {
+      font-size: 1.15rem;
+      color: #ffffff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #141c2a;
+      padding-bottom: 10px;
+    }
+
+    .ref-list {
+      list-style-type: decimal;
+      padding-left: 22px;
+      font-family: var(--code-font);
+      font-size: 12px;
+      color: #8c9cb3;
+    }
+
+    .ref-list li {
+      margin-bottom: 15px;
+      line-height: 1.65;
+    }
+
+    .ref-item-title {
+      color: #cbd8e8;
+    }
+
+    .big-link {
+      font-size: 1.06em;
+      color: #5599ff;
+      font-weight: 600;
+    }
+
+    /* 页面底部指示 */
+    .footer-note {
+      text-align: center;
+      margin-top: 50px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: var(--code-font);
+    }
+
+    /* 点击十字瞄准准星 */
+    .click-target-crosshair {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 150;
+      animation: crosshairFade 0.9s cubic-bezier(0, 0, 0.2, 1) forwards;
+    }
+
+    .click-target-crosshair::before,
+    .click-target-crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+    .click-target-crosshair::before {
+      top: 50%; left: 0; right: 0; height: 1.5px; transform: translateY(-50%);
+    }
+    .click-target-crosshair::after {
+      left: 50%; top: 0; bottom: 0; width: 1.5px; transform: translateX(-50%);
+    }
+
+    .click-target-ring {
+      position: absolute;
+      inset: 0;
+      border: 1.5px solid var(--accent-magenta);
+      border-radius: 50%;
+      animation: ringZoom 0.9s ease-out forwards;
+    }
+
+    @keyframes ringZoom {
+      0% { transform: scale(0.3); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    @keyframes crosshairFade {
+      0% { opacity: 1; }
+      70% { opacity: 0.9; }
+      100% { opacity: 0; }
+    }
+
+    /* ==============================================================
+       右下方悬浮全息星图雷达：跟随画面游走 (固定于视口右下角)
+       ============================================================== */
+    .cyber-radar-widget {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 254px;
+      background: rgba(9, 13, 20, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 12px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8), 0 0 18px rgba(0, 240, 255, 0.15);
+      z-index: 120;
+      font-family: var(--code-font);
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+
+    .cyber-radar-widget:hover {
+      border-color: rgba(0, 240, 255, 0.65);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 240, 255, 0.28);
+    }
+
+    .cyber-radar-widget.is-collapsed {
+      width: 170px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    .cyber-radar-widget.is-collapsed .radar-display-wrapper,
+    .cyber-radar-widget.is-collapsed .radar-legend-bar,
+    .cyber-radar-widget.is-collapsed .radar-control-bar {
+      display: none;
+    }
+
+    .cyber-radar-widget.is-collapsed .card-title-bar {
+      margin-bottom: 0;
+    }
+
+    .card-title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
+
+    .radar-dot-pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 6px var(--accent-cyan);
+      animation: hudPulse 1.4s infinite;
+    }
+
+    .radar-status-pill {
+      font-size: 8px;
+      color: var(--accent-cyan);
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    .radar-display-wrapper {
+      position: relative;
+      background: radial-gradient(circle at center, #06121d 0%, #03060a 100%);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      box-shadow: inset 0 0 18px rgba(0, 240, 255, 0.12), 0 0 10px rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      height: 195px;
+      margin-bottom: 7px;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    #radar-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .radar-compass-tag {
+      position: absolute;
+      font-size: 8px;
+      font-family: var(--code-font);
+      color: rgba(0, 240, 255, 0.45);
+      pointer-events: none;
+      font-weight: bold;
+      user-select: none;
+    }
+    .tag-n { top: 3px; left: 50%; transform: translateX(-50%); }
+    .tag-s { bottom: 3px; left: 50%; transform: translateX(-50%); }
+    .tag-w { left: 4px; top: 50%; transform: translateY(-50%); }
+    .tag-e { right: 4px; top: 50%; transform: translateY(-50%); }
+
+    .radar-hover-tooltip {
+      position: absolute;
+      bottom: 5px;
+      left: 6px;
+      right: 6px;
+      background: rgba(8, 12, 18, 0.92);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 4px;
+      font-size: 8.5px;
+      color: var(--accent-cyan);
+      padding: 2px 6px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    .radar-legend-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 3px;
+      margin-bottom: 6px;
+      padding: 3px 5px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 4px;
+      font-size: 8px;
+    }
+
+    .radar-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--text-muted);
+    }
+
+    .r-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+    .r-dot.cyan { background: var(--accent-cyan); box-shadow: 0 0 5px var(--accent-cyan); }
+    .r-dot.pink { background: var(--accent-magenta); box-shadow: 0 0 5px var(--accent-magenta); }
+    .r-dot.yellow { background: #ffff00; box-shadow: 0 0 5px #ffff00; }
+
+    .radar-control-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .radar-coord-readout {
+      font-size: 8px;
+      color: var(--accent-cyan);
+      font-family: var(--code-font);
+    }
+
+    .radar-btn {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 3px;
+      color: var(--accent-cyan);
+      font-size: 8.5px;
+      font-family: var(--code-font);
+      padding: 2px 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radar-btn:hover {
+      background: rgba(0, 240, 255, 0.28);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 顶层 Canvas，渲染侧边大型发光蜘蛛网、机械蜘蛛、飞入昆虫、IK肢足与挂网药丸 -->
+  <canvas id="crawler-canvas"></canvas>
+
+  <!-- 侧边黑空位：蜘蛛网食物储藏库指示卡片 -->
+  <aside class="web-lair-widget" id="web-lair-widget">
+    <div class="web-lair-title">
+      <span>🕸️ 蛛网食物库 / SARANG MAKANAN</span>
+    </div>
+    <div class="web-lair-stat">
+      <span>挂网收藏资料:</span>
+      <strong style="color:var(--accent-cyan);" id="web-prey-count">0 件</strong>
+    </div>
+    <div class="web-lair-stat" style="margin-top:2px;">
+      <span>状态:</span>
+      <span style="color:var(--accent-lime);" id="web-status-msg">等待投喂 (每30秒飞入小昆虫)</span>
+    </div>
+  </aside>
+
+  <!-- 侧边黑空位：赛博背景音乐控制器 (左下角可调大小声) -->
+  <aside class="cyber-music-widget" id="cyber-music-widget">
+    <div class="music-widget-header">
+      <div class="music-title-group">
+        <span>🎵 MUSIC</span>
+        <span style="font-size: 9.5px; color: var(--text-muted); font-weight: 400;">Arachnid Pulse</span>
+      </div>
+      <div class="music-visualizer" id="music-visualizer" title="音频律动">
+        <span class="music-bar"></span>
+        <span class="music-bar"></span>
+        <span class="music-bar"></span>
+        <span class="music-bar"></span>
+        <span class="music-bar"></span>
+      </div>
+    </div>
+    <div class="music-controls-row">
+      <button class="music-btn" id="btn-music-toggle" title="播放 / 暂停 (Play/Pause)">▶</button>
+      <button class="music-btn" id="btn-music-mute" title="静音 / 恢复 (Mute)">🔊</button>
+      <div class="music-vol-slider-wrap">
+        <input type="range" class="music-vol-slider" id="music-vol-slider" min="0" max="1" step="0.01" value="0.16" title="调节音量 / Adjust Volume">
+        <span class="music-vol-label" id="music-vol-label">16%</span>
+      </div>
+    </div>
+  </aside>
+  <audio id="bg-audio-player" src="Arachnid%20Pulse.mp3" preload="auto" loop autoplay></audio>
+
+  <!-- 自动收藏 / 折叠的控制面板 (HUD) -->
+  <aside class="hud-wrapper" id="hud-wrapper">
+    <!-- 折叠后的迷你徽章 -->
+    <div class="hud-mini-pill" id="hud-mini-pill" title="展开控制面板 / Buka Panel">
+      <span class="hud-pulse-dot"></span>
+      <span id="mini-pill-text">/[•]\ 大眼探秘 (中)</span>
+      <span style="opacity: 0.6; font-size: 10px;">⚙️ 控制</span>
+    </div>
+
+    <!-- 展开后的完整面板 -->
+    <div class="hud-expanded-panel" id="hud-expanded-panel">
+      <div class="hud-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="hud-pulse-dot"></span>
+          <span style="font-weight:700; color:var(--accent-cyan); font-size:12px;">CRAWLER LAB /[•]\</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:10px; color:var(--accent-magenta);" id="hud-status-badge">大眼探秘</span>
+          <button class="hud-close-btn" id="hud-close-btn" title="收起面板 / Sembunyikan">✕</button>
+        </div>
+      </div>
+
+      <!-- 速度调节栏 -->
+      <div class="hud-section-title">
+        <span>⚡ 爬行速度 / KELAJUAN:</span>
+        <span style="font-size:9.5px; color:var(--accent-cyan);" id="current-speed-label">1.8x (正常)</span>
+      </div>
+      <div class="speed-control-box">
+        <input type="range" class="speed-slider" id="speed-slider" min="0.4" max="3.2" step="0.1" value="1.8">
+        <div class="speed-btn-row">
+          <button class="speed-mini-btn" data-spd="0.6" id="btn-spd-slow">🐢 慢速</button>
+          <button class="speed-mini-btn active" data-spd="1.8" id="btn-spd-norm">⚡ 正常</button>
+          <button class="speed-mini-btn" data-spd="2.6" id="btn-spd-fast">🚀 极速</button>
+        </div>
+      </div>
+
+      <!-- 蜘蛛尺寸选择 (小 / 中 / 大) -->
+      <div class="hud-section-title">
+        <span>📏 蜘蛛体型尺寸 / SAIZ SPIDER:</span>
+        <span style="font-size:9.5px; color:var(--accent-cyan);" id="current-size-label">中 (1.55x)</span>
+      </div>
+      <div class="hud-size-grid">
+        <button class="size-btn" data-scale="1.0" id="btn-size-s">
+          <span>🐜 小 / S</span>
+        </button>
+        <button class="size-btn active" data-scale="1.55" id="btn-size-m">
+          <span>🕷️ 中 / M</span>
+        </button>
+        <button class="size-btn" data-scale="2.3" id="btn-size-l">
+          <span>👾 大 / L</span>
+        </button>
+      </div>
+
+      <!-- 蜘蛛品种选择 -->
+      <div class="hud-section-title">
+        <span>🕷️ 选择蜘蛛品种 / PILIH SPESIS:</span>
+      </div>
+      <div class="species-grid">
+        <button class="species-btn" data-species="weaver" id="btn-sp-weaver">
+          <span class="species-icon">🦵</span>
+          <span>织网长腿</span>
+          <span style="font-size:8.5px; color:#b522ff;">Kaki Panjang</span>
+        </button>
+        <button class="species-btn active" data-species="watcher" id="btn-sp-watcher">
+          <span class="species-icon">👁️</span>
+          <span>大眼探秘</span>
+          <span style="font-size:8.5px; color:#ffaa00;">Mata Besar</span>
+        </button>
+        <button class="species-btn" data-species="berserker" id="btn-sp-berserker">
+          <span class="species-icon">⚡</span>
+          <span>凶暴疾行</span>
+          <span style="font-size:8.5px; color:#ff1e42;">Ganas</span>
+        </button>
+      </div>
+
+      <!-- 互动模式 -->
+      <div class="hud-section-title">
+        <span>🕹️ 滑鼠互动 / MOD INTERAKSI:</span>
+      </div>
+      <div class="hud-mode-grid">
+        <button class="hud-btn" id="btn-mode-target" data-mode="target">🎯 点击派遣</button>
+        <button class="hud-btn" id="btn-mode-follow" data-mode="follow">🧲 鼠标引诱</button>
+        <button class="hud-btn" id="btn-mode-flee" data-mode="flee">⚡ 惊扰避让</button>
+        <button class="hud-btn active" id="btn-mode-auto" data-mode="auto">🌐 自主漫游</button>
+      </div>
+
+      <div class="hud-toolbar">
+        <button class="hud-btn" id="btn-spawn-bug" style="flex:1; background:rgba(255, 30, 66, 0.25); border-color:#ff1e42; color:#ff99a8;">🪰 投喂飞虫</button>
+        <button class="hud-btn" id="btn-toggle-sound" style="flex:1;">🔊 音效: 开</button>
+        <button class="hud-btn" id="btn-clear-web" style="flex:1;">🕸️ 清空网食</button>
+        <button class="hud-btn" id="btn-reset-pos" style="flex:1;">📍 居中蜘蛛</button>
+      </div>
+
+      <div class="hud-toolbar" style="margin-top: 6px;">
+        <button class="hud-btn" id="btn-trick-pounce" style="flex:1; background:rgba(255, 0, 127, 0.2); border-color:var(--accent-magenta); color:#ff99c8;" title="拟物特技：机械巨蛛向屏幕飞扑突脸吓人！">🕷️ 飞扑突脸</button>
+        <button class="hud-btn" id="btn-trick-rappel" style="flex:1; background:rgba(0, 240, 255, 0.2); border-color:var(--accent-cyan); color:#b5f6ff;" title="拟物特技：隐匿暗影消散，从天而降吐丝倒挂！">🕸️ 倒挂吊落</button>
+      </div>
+
+      <div class="hud-info-tip" id="hud-status-tip">
+        💡 提示：蜘蛛静止时微动呼吸；偶尔会跳起向屏幕飞扑吓人或隐匿倒挂吊落（此时不理会飞虫，演完再抓）；抓取文字可累计3个回网储食；每30秒有飞虫误入！
+      </div>
+    </div>
+  </aside>
+
+  <!-- 右下方悬浮视口雷达：跟随画面游走 (固定于屏幕右下角) -->
+  <aside class="cyber-radar-widget" id="cyber-radar-widget">
+    <div class="card-title-bar">
+      <span style="color:var(--accent-cyan); display:flex; align-items:center; gap:5px;">
+        <span class="radar-dot-pulse"></span>
+        <span>🌐 星图雷达 / RADAR</span>
+      </span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span class="radar-status-pill" id="radar-status-pill">ACTIVE 360°</span>
+        <button id="radar-toggle-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:10px; padding:0 2px;" title="折叠/展开雷达">▼</button>
+      </div>
+    </div>
+
+    <!-- 全息雷达主 Canvas 视窗 -->
+    <div class="radar-display-wrapper" id="radar-display-wrapper">
+      <canvas id="radar-canvas" width="234" height="195"></canvas>
+      <div class="radar-compass-tag tag-n">N</div>
+      <div class="radar-compass-tag tag-e">E</div>
+      <div class="radar-compass-tag tag-s">S</div>
+      <div class="radar-compass-tag tag-w">W</div>
+      <div class="radar-hover-tooltip" id="radar-hover-tooltip">🎯 点击雷达星图 立即调度爬虫</div>
+    </div>
+
+    <!-- 雷达图例说明与节点统计 -->
+    <div class="radar-legend-bar">
+      <div class="radar-legend-item">
+        <span class="r-dot cyan"></span>
+        <span id="radar-uncrawled-count">待扫: 18</span>
+      </div>
+      <div class="radar-legend-item">
+        <span class="r-dot pink"></span>
+        <span id="radar-crawled-count">变异: 0</span>
+      </div>
+      <div class="radar-legend-item">
+        <span class="r-dot yellow"></span>
+        <span>蜘蛛位置</span>
+      </div>
+    </div>
+
+    <!-- 雷达操作控制栏 -->
+    <div class="radar-control-bar">
+      <span class="radar-coord-readout" id="radar-coord-readout">COORD: [0, 0]</span>
+      <button class="radar-btn" id="btn-radar-ping">⚡ 脉冲扫描</button>
+    </div>
+  </aside>
+
+  <!-- 主页面排版：庞大丰富的马来西亚数码智能资料库 -->
+  <main class="container">
+    
+    <header class="site-header">
+      <div class="badge-bar">
+        <span class="tag-chip tag-cyan">🌐 MALAYSIA DIGITAL INTELLIGENCE</span>
+        <span class="tag-chip tag-magenta">BERNAMA INSIGHTS</span>
+        <span class="tag-chip tag-lime">KEMENTERIAN DIGITAL</span>
+        <span class="tag-chip tag-cyan">PUTRAJAYA CENTRAL ARCHIVE</span>
+        <span style="margin-left: auto; font-family: var(--code-font); font-size: 11px; color: var(--text-muted);">
+          KUALA LUMPUR | TARIKH: 03 OKT 2026
+        </span>
+      </div>
+      <h1 class="page-title">马来西亚加速布局东盟数码中心与区域人工智能枢纽</h1>
+      <div class="subtitle-my">Malaysia Mempercepat Kedudukan Sebagai Hab Kecerdasan Buatan (AI) & Pusat Data ASEAN</div>
+      <div class="header-meta">
+        <span>Kategori: Ekonomi Digital & Sistem Autonomus</span>
+        <span>Sumber: Warta Digital Putrajaya</span>
+        <span>Status: <strong style="color: var(--accent-lime);">TERKINI & TELAH DIINDEKS</strong></span>
+      </div>
+    </header>
+
+    <!-- 文章区块 1 -->
+    <article class="article-section" id="art-ai">
+      <h2 class="article-heading">1. 昌明经济数码蓝图与超级算力集群</h2>
+      <div class="article-heading-my">Pelan Tindakan Ekonomi Madani & Kluster Pengkomputeran Super Serantau</div>
+      
+      <p class="paragraph-zh">
+        马来西亚数码部与投资发展局（MIDA）今日联合宣布，将在<span class="crawled-target box-orange">Cyberjaya 赛城 ↗</span>与<span class="crawled-target box-blue">Johor 柔佛数码走廊 ↗</span>进一步扩建绿色超大规模数据中心。随着全球人工智能计算需求的激增，国家人工智能办公室（NAIO）正式启动了代号为<span class="crawled-target box-purple">MyDigital-Alpha [PDF]</span>的国家级大语言模型基础设施计划，预计将在未来两年内为东盟跨境贸易提供多语言神经机器智能支持。
+      </p>
+
+      <p class="paragraph-ms">
+        Kementerian Digital bersama Lembaga Pembangunan Pelaburan Malaysia (MIDA) mengesahkan peluasan pusat data berskala hiper hijau di Cyberjaya dan hab koridor selatan Johor. Inisiatif Pejabat AI Kebangsaan (NAIO) kini memacu infrastruktur pengkomputeran berprestasi tinggi untuk memperkasakan <span class="crawled-target box-lime">ekosistem industri bernilai tinggi ↗</span>.
+      </p>
+
+      <div style="font-family: var(--code-font); font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap;">
+        <span>INDICES:</span>
+        <span class="crawled-target box-orange">doi:10.1016/j.kl.ai.2026.04 ↗</span>
+        <span class="crawled-target box-purple">PMID:28901452</span>
+        <span class="crawled-target box-blue">Bibcode:2026Mydigital..42..88A ↗</span>
+        <span class="crawled-target box-cyan">NAIO-GRID-ALPHA</span>
+      </div>
+    </article>
+
+    <!-- 文章区块 2 -->
+    <article class="article-section" id="art-chip">
+      <h2 class="article-heading">2. 半导体封装与集成电路测试升级</h2>
+      <div class="article-heading-my">Rantaian Nilai Semikonduktor Pulau Pinang & Ujian Lanjutan Litar Bersepadu</div>
+
+      <p class="paragraph-zh">
+        凭借在<span class="crawled-target box-cyan">Pulau Pinang 槟城科技硅谷 ↗</span>与<span class="crawled-target box-orange">Kulim 居林高科技园 ↗</span>长达半个世纪的半导体制造沉淀，马来西亚正从后端的芯片封装测试（OSAT）全面向高附加值的前端集成电路设计（IC Design）迈进。国家银行（Bank Negara Malaysia）最新的第三季度宏观经济指标显示，高科技电子电气（E&E）出口额同比增长了<span class="crawled-target box-purple">+14.8% Export Surplus</span>，成为推动全年国内生产总值（KDNK）健康增长的核心引擎。
+      </p>
+
+      <p class="paragraph-ms">
+        Menerusi kepakaran lebih lima dekad di Pulau Pinang dan Kulim Hi-Tech Park, Malaysia kini beralih daripada <span class="crawled-target box-blue">pembungkusan cip tradisional</span> kepada reka bentuk litar bersepadu bernilai tinggi. Laporan terkini Bank Negara Malaysia membuktikan eksport elektrik dan elektronik (E&E) kekal sebagai pemacu utama lebihan dagangan negara.
+      </p>
+
+      <div style="font-family: var(--code-font); font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap;">
+        <span>INDICES:</span>
+        <span class="crawled-target box-blue">ISBN 978-0-89672-620-8</span>
+        <span class="crawled-target box-orange">doi:10.1038/s41586-semicon-my ↗</span>
+        <span class="crawled-target box-purple">PMID:33819024</span>
+        <span class="crawled-target box-lime">MIDA-E&E-REGISTRY</span>
+      </div>
+    </article>
+
+    <!-- 文章区块 3 -->
+    <article class="article-section" id="art-5g">
+      <h2 class="article-heading">3. 5G-Advanced 全球互联与智能交通网络</h2>
+      <div class="article-heading-my">Penyebaran Rangkaian 5G-Advanced & Mobiliti Bandar Pintar Kuala Lumpur</div>
+
+      <p class="paragraph-zh">
+        吉隆坡市政局（DBKL）配合全国数码互联计划，完成了巴生河流域核心交通网络的超低时延<span class="crawled-target box-blue">5G-Advanced 蜂窝物联网 ↗</span>部署。智能城市感知节点目前每日汇聚并索引逾十亿条遥测数据。网络安全机构（CyberSecurity Malaysia）已同步部署主动式防御爬虫，全天候侦测网络漏洞并验证金融支付网关的<span class="crawled-target box-lime">加密完整性协议 (AES-256)</span>。
+      </p>
+
+      <p class="paragraph-ms">
+        Dewan Bandaraya Kuala Lumpur (DBKL) melengkapkan pelaksanaan sistem IoT pintar berasaskan 5G-Advanced di sepanjang koridor Lembah Klang. Pasukan CyberSecurity Malaysia menggunakan sistem pengimbasan automatik demi menjamin keselamatan transaksi digital perbankan dan infrastruktur kritikal.
+      </p>
+
+      <div style="font-family: var(--code-font); font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap;">
+        <span>INDICES:</span>
+        <span class="crawled-target box-orange">doi:10.1109/TNET.2026.kl5g ↗</span>
+        <span class="crawled-target box-purple">PMID:37194002</span>
+        <span class="crawled-target box-cyan">S2CID 130267137</span>
+      </div>
+    </article>
+
+    <!-- 文章区块 4 -->
+    <article class="article-section" id="art-quantum">
+      <h2 class="article-heading">4. 国家量子密码与跨境数码金融结算</h2>
+      <div class="article-heading-my">Kriptografi Kuantum Kebangsaan & Penyelesaian Kewangan Rentas Sempadan</div>
+
+      <p class="paragraph-zh">
+        马来西亚国家银行与东盟多国央行携手，在吉隆坡正式投运<span class="crawled-target box-purple">ASEAN-Nexus 多边跨境即时支付通道 ↗</span>。该通道融合了后量子密码算法（PQC）与分布式数据账本技术，每日清算交易量超过<span class="crawled-target box-orange">RM 4.8 Billion</span>。赛城量子前沿实验室（Cyberjaya Quantum Lab）与马来亚大学联合研发的纠缠光子网络，成功实现了跨越 120 公里的抗量子窃听通信链路。
+      </p>
+
+      <p class="paragraph-ms">
+        Bank Negara Malaysia bersama rakan serantau ASEAN mengaktifkan hab pembayaran segera rentas sempadan Project Nexus berasaskan keselamatan kriptografi kuantum. Usaha sama makmal kuantum Cyberjaya dan Universiti Malaya membolehkan rangkaian optik selamat tanpa risiko pengintipan digital.
+      </p>
+
+      <div style="font-family: var(--code-font); font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap;">
+        <span>INDICES:</span>
+        <span class="crawled-target box-blue">BNM-NEXUS-2026</span>
+        <span class="crawled-target box-lime">doi:10.1038/s41534-quantum-my ↗</span>
+        <span class="crawled-target box-orange">S2CID 261884910</span>
+        <span class="crawled-target box-purple">PMID 39912044</span>
+      </div>
+    </article>
+
+    <!-- 文章区块 5 -->
+    <article class="article-section" id="art-green">
+      <h2 class="article-heading">5. 绿色能源与可持续数码算力基础设施</h2>
+      <div class="article-heading-my">Infrastruktur Kuasa Hijau & Kecekapan Tenaga Pusat Data Nasional</div>
+
+      <p class="paragraph-zh">
+        国家能源公司（TNB）宣布启动<span class="crawled-target box-lime">Tenaga Hijau Madani 绿色电力走廊 ↗</span>，为东马与西马的所有超大规模数据中心配备专属的太阳能与浮动水面光伏阵列。依据最新的国家能源转型路线图（NETR），所有获批的数据中心必须实现低于<span class="crawled-target box-cyan">PUE 1.25 能效指标</span>，并接入国家环境遥测实时数据库，由自动化自治爬虫进行碳足迹在线核验。
+      </p>
+
+      <p class="paragraph-ms">
+        Tenaga Nasional Berhad (TNB) memperuntukkan grid pintar tenaga boleh diperbaharui khusus bagi hab pengkomputeran berprestasi tinggi di seluruh negara selaras dengan Pelan Hala Tuju Peralihan Tenaga Negara (NETR).
+      </p>
+
+      <div style="font-family: var(--code-font); font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap;">
+        <span>INDICES:</span>
+        <span class="crawled-target box-orange">NETR-GREEN-POWER</span>
+        <span class="crawled-target box-blue">doi:10.1016/j.renene.2026.tnb ↗</span>
+        <span class="crawled-target box-purple">ISO-14064-CARBON</span>
+      </div>
+    </article>
+
+    <!-- 文献引用与学术代码数据库 -->
+    <section class="references-box" id="references-section">
+      <div class="ref-title">
+        <span>📚 参考文献与学术数据索引 (Rujukan Akademik & Arkib Web)</span>
+        <span style="font-size: 11px; color: var(--accent-cyan); font-family: var(--code-font);">AUTONOMOUS INDEXED REPOSITORY</span>
+      </div>
+
+      <ol class="ref-list">
+        <li>
+          <span class="ref-item-title">Kementerian Digital Malaysia (2026).</span> <span class="big-link">"Kertas Putih Pembangunan Ekosistem Kecerdasan Buatan Madani 2026–2030" ↗</span>. Putrajaya: Percetakan Nasional. 
+          <span class="crawled-target box-orange">doi:10.1017/S002531540001 ↗</span>
+          <span class="crawled-target box-purple">PMID 24317464</span>
+          <span class="crawled-target box-blue">Bibcode:2026MyGov...12..401K ↗</span>
+        </li>
+        <li>
+          <span class="ref-item-title">Lembaga Pembangunan Pelaburan Malaysia (MIDA).</span> "Laporan Pelaburan Strategik Koridor Digital Johor-Singapura (JS-SEZ)." 
+          <span class="crawled-target box-blue">1999Palgy..42..191D ↗</span>
+          <span class="crawled-target box-orange">doi:10.1111/j.1365-2451.2007.00641.x ↗</span>
+          <span class="crawled-target box-purple">PMID 17168882</span>
+          <span class="crawled-target box-cyan">S2CID 251727654</span>
+        </li>
+        <li>
+          <span class="ref-item-title">Bank Negara Malaysia (BNM).</span> <span class="big-link">"Oldest spider web found in amber & Digital Economy" ↗</span>.
+          <span class="crawled-target box-orange">ISBN 978-0-89672-620-8</span>
+          <span class="crawled-target box-purple">83825904 ↗</span>
+          <span class="crawled-target box-blue">Bibcode:2026BNMBull..99..714B ↗</span>
+        </li>
+        <li>
+          <span class="ref-item-title">Universiti Malaya (UM) & Universiti Sains Malaysia (USM).</span> "The Role of Behavior in the Evolution of Digital Spiders, Silks, and Webs" [PDF].
+          <span class="crawled-target box-orange">doi:10.1146/annurev.ecolsys.37.091305.110221 ↗</span>
+          <span class="crawled-target box-purple">11483545 ↗</span>
+          <span class="crawled-target box-blue">PMC 3169061 ↗</span>
+        </li>
+        <li>
+          <span class="ref-item-title">CyberSecurity Malaysia (CSM).</span> "A giant spider from the Jurassic reveals diversity of web crawlers."
+          <span class="crawled-target box-blue">ISSN 0028-1042</span>
+          <span class="crawled-target box-purple">PMID 21508021</span>
+          <span class="crawled-target box-orange">doi:10.1007/s00114-026-1121-7 ↗</span>
+          <span class="crawled-target box-lime">CSM-VULN-2026</span>
+        </li>
+        <li>
+          <span class="ref-item-title">Suruhanjaya Komunikasi dan Multimedia Malaysia (MCMC).</span> "Spesifikasi Standard Antena 5G-Advanced Jalur Lebar Gelombang Milimeter."
+          <span class="crawled-target box-orange">doi:10.1109/MCOM.2026.mcmc ↗</span>
+          <span class="crawled-target box-cyan">PMID 38290119</span>
+          <span class="crawled-target box-blue">Bibcode:2026MCMC...08..55A ↗</span>
+        </li>
+        <li>
+          <span class="ref-item-title">Institut Tadbiran Awam Negara (INTAN).</span> "Pendigitalan Sektor Awam dan Tadbir Urus Berasaskan Ejen AI Autonomus."
+          <span class="crawled-target box-purple">INTAN-GOV-8821</span>
+          <span class="crawled-target box-lime">doi:10.1080/01900692.2026.intan ↗</span>
+        </li>
+      </ol>
+    </section>
+
+    <footer class="footer-note">
+      <div>[•]\ Web Crawler Experiment &copy; 2026 | Berita Digital Malaysia &times; Autonomous IK Procedural Engine</div>
+      <div style="margin-top: 4px; color: #55667e;">活体仿生微动系统 | 30秒飞虫误入机制 | 蜘蛛红眼暴走追捕挂网</div>
+    </footer>
+
+  </main>
+
+  <!-- 核心逻辑：活体停歇微动、15秒小飞虫误入、蜘蛛红眼暴走追捕挂网、速度调节与蛛网储食 -->
+  <script>
+    (function() {
+      // 1. 初始化 Canvas 与视口
+      const canvas = document.getElementById('crawler-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      let width = (canvas.width = window.innerWidth);
+      let height = (canvas.height = window.innerHeight);
+
+      window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        webLair.updatePosition();
+      });
+
+      // roundRect Polyfill
+      if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+          if (typeof r === 'undefined') r = 4;
+          if (w < 2 * r) r = w / 2;
+          if (h < 2 * r) r = h / 2;
+          this.beginPath();
+          this.moveTo(x + r, y);
+          this.arcTo(x + w, y, x + w, y + h, r);
+          this.arcTo(x + w, y + h, x, y + h, r);
+          this.arcTo(x, y + h, x, y, r);
+          this.arcTo(x, y, x + w, y, r);
+          this.closePath();
+          return this;
+        };
+      }
+
+      // 2. 控制面板自动收藏 / 展开机制 (2.6秒自动隐藏)
+      const hudWrapper = document.getElementById('hud-wrapper');
+      const hudMiniPill = document.getElementById('hud-mini-pill');
+      const hudCloseBtn = document.getElementById('hud-close-btn');
+      let autoCollapseTimer = null;
+
+      function openHud() {
+        hudWrapper.classList.add('is-open');
+        resetAutoCollapseTimer();
+      }
+
+      function closeHud() {
+        hudWrapper.classList.remove('is-open');
+        if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
+      }
+
+      function resetAutoCollapseTimer() {
+        if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
+        autoCollapseTimer = setTimeout(() => {
+          closeHud();
+        }, 2600);
+      }
+
+      hudMiniPill.addEventListener('click', openHud);
+      hudMiniPill.addEventListener('mouseenter', openHud);
+      hudCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeHud();
+      });
+
+      hudWrapper.addEventListener('mouseenter', () => {
+        if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
+      });
+      hudWrapper.addEventListener('mouseleave', () => {
+        if (hudWrapper.classList.contains('is-open')) {
+          resetAutoCollapseTimer();
+        }
+      });
+
+      // 3. 全局交互状态、速度系数与音效
+      let currentMode = 'auto'; // 默认自主漫游
+      let currentSpeedMultiplier = 1.8; // 默认 1.8x (正常)
+      let mousePos = { x: width / 2, y: height / 2 };
+      let mouseInWindow = false;
+      let soundEnabled = true;
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      let audioCtx = null;
+
+      function playSound(type, scale = 1.0) {
+        if (!soundEnabled) return;
+        try {
+          if (!audioCtx) audioCtx = new AudioCtx();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+
+          const now = audioCtx.currentTime;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          if (type === 'step') {
+            const baseFreq = (160 + Math.random() * 80) / scale;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(baseFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(30, now + 0.04 * scale);
+            gain.gain.setValueAtTime(0.02 * Math.min(1.5, scale), now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.04 * scale);
+            osc.start(now);
+            osc.stop(now + 0.04 * scale);
+          } else if (type === 'scan') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(700, now);
+            osc.frequency.exponentialRampToValueAtTime(1600, now + 0.1);
+            gain.gain.setValueAtTime(0.035, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
+          } else if (type === 'user_harvest') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.06);
+            osc.frequency.setValueAtTime(783.99, now + 0.12);
+            gain.gain.setValueAtTime(0.045, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.22);
+            osc.start(now);
+            osc.stop(now + 0.22);
+          } else if (type === 'auto_absorb') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(380, now);
+            osc.frequency.exponentialRampToValueAtTime(120, now + 0.14);
+            gain.gain.setValueAtTime(0.035, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+          } else if (type === 'stash_web') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(554.37, now + 0.08);
+            osc.frequency.setValueAtTime(659.25, now + 0.16);
+            osc.frequency.setValueAtTime(880, now + 0.24);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.45);
+            osc.start(now);
+            osc.stop(now + 0.45);
+          } else if (type === 'fly_buzz') {
+            // 苍蝇振翅嗡嗡声
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(260 + Math.random() * 40, now);
+            gain.gain.setValueAtTime(0.015, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+          } else if (type === 'predator_alert') {
+            // 蜘蛛发现猎物狂暴声（刺耳捕食警报音）
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(980, now);
+            osc.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.28);
+            osc.start(now);
+            osc.stop(now + 0.28);
+          } else if (type === 'firework') {
+            // 抓取文字瞬间数码微型烟火音效 (Pop + Twinkle Shimmer)
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1400, now);
+            osc.frequency.exponentialRampToValueAtTime(240, now + 0.28);
+            gain.gain.setValueAtTime(0.065, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.32);
+            osc.start(now);
+            osc.stop(now + 0.32);
+          } else if (type === 'jumpscare') {
+            // 飞扑突脸吓人音效 (低沉下潜 + 高频尖锐嘶鸣与震颤)
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+            osc.frequency.exponentialRampToValueAtTime(70, now + 0.65);
+            gain.gain.setValueAtTime(0.09, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.68);
+            osc.start(now);
+            osc.stop(now + 0.68);
+          } else if (type === 'silk_drop') {
+            // 吐丝倒挂吊落拟物声 (空灵晶体滑音)
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(240, now + 0.8);
+            gain.gain.setValueAtTime(0.045, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.85);
+            osc.start(now);
+            osc.stop(now + 0.85);
+          }
+        } catch (e) {}
+      }
+
+      // 4. 获取 DOM 目标
+      function getTargetElements() {
+        const elements = document.querySelectorAll('.crawled-target');
+        const list = [];
+        const scrollY = window.scrollY;
+        const scrollX = window.scrollX;
+        elements.forEach(el => {
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            list.push({
+              el: el,
+              x: rect.left + rect.width / 2 + scrollX,
+              y: rect.top + rect.height / 2 + scrollY,
+              text: el.innerText.trim()
+            });
+          }
+        });
+        return list;
+      }
+
+      // 5. 逆向运动学 IK 解算
+      function solve2SegmentIK(x0, y0, x2, y2, l1, l2, bendRight = true) {
+        const dx = x2 - x0;
+        const dy = y2 - y0;
+        let dist = Math.hypot(dx, dy);
+
+        const maxDist = (l1 + l2) * 0.999;
+        if (dist > maxDist) dist = maxDist;
+        if (dist < 1) dist = 1;
+
+        const baseAngle = Math.atan2(dy, dx);
+        const cosAlpha = (l1 * l1 + dist * dist - l2 * l2) / (2 * l1 * dist);
+        const clampedCos = Math.max(-1, Math.min(1, cosAlpha));
+        const alpha = Math.acos(clampedCos);
+
+        const kneeAngle = bendRight ? baseAngle + alpha : baseAngle - alpha;
+        const x1 = x0 + Math.cos(kneeAngle) * l1;
+        const y1 = y0 + Math.sin(kneeAngle) * l1;
+
+        return { x1, y1 };
+      }
+
+      // ==============================================================
+      // 6. 苍蝇 / 数码小飞虫系统 (Cyber Fly / Insect)
+      // 每 15 秒一只不小心飞入界面，具有逼真振翅、盘旋与躲避行为！
+      // ==============================================================
+      class CyberFly {
+        constructor() {
+          this.active = false;
+          this.isCaught = false;
+          this.x = 0;
+          this.y = 0;
+          this.vx = 0;
+          this.vy = 0;
+          this.wingPhase = 0;
+          this.lifeTime = 0;
+        }
+
+        spawn(spider) {
+          this.active = true;
+          this.isCaught = false;
+          this.lifeTime = 0;
+
+          const scrollY = window.scrollY;
+          const vW = window.innerWidth;
+          const vH = window.innerHeight;
+
+          // 用户指令：设置出现要离蜘蛛远些！
+          // 根据蜘蛛当前在屏幕视口中的坐标，将飞虫生成在对侧远离蜘蛛的视口边缘
+          const spX = spider ? spider.x : vW * 0.5;
+          const spScreenY = spider ? (spider.y - scrollY) : vH * 0.5;
+
+          // 水平对侧位置（距离蜘蛛至少 550px - 900px）
+          if (spX < vW * 0.5) {
+            // 蜘蛛在左侧，飞虫从视口右侧边缘飞入
+            this.x = Math.max(vW * 0.75, vW - 140 - Math.random() * 120);
+          } else {
+            // 蜘蛛在右侧，飞虫从视口左侧边缘飞入
+            this.x = Math.min(vW * 0.25, 140 + Math.random() * 120);
+          }
+
+          // 垂直对侧位置
+          if (spScreenY < vH * 0.5) {
+            // 蜘蛛在上方，飞虫从下方飞入
+            this.y = scrollY + Math.max(vH * 0.65, vH - 150 - Math.random() * 100);
+          } else {
+            // 蜘蛛在下方，飞虫从上方飞入
+            this.y = scrollY + Math.min(vH * 0.35, 120 + Math.random() * 100);
+          }
+
+          // 初始速度朝向视口中心区域盘旋
+          const targetCenterY = scrollY + vH * 0.5;
+          const targetCenterX = vW * 0.5;
+          const aimAngle = Math.atan2(targetCenterY - this.y, targetCenterX - this.x) + (Math.random() - 0.5) * 0.4;
+          const initialSpeed = 3.6 + Math.random() * 1.6;
+          this.vx = Math.cos(aimAngle) * initialSpeed;
+          this.vy = Math.sin(aimAngle) * initialSpeed;
+
+          playSound('fly_buzz');
+          playSound('predator_alert', 1.3);
+        }
+
+        update(spider) {
+          if (!this.active) return;
+          this.lifeTime++;
+          this.wingPhase += 0.85; // 50Hz 振翅频率
+
+          // 若已被蜘蛛捕获：粘附在蜘蛛身体前方，被带往蜘蛛网
+          if (this.isCaught) {
+            this.x = spider.x + Math.cos(spider.angle) * 18 * spider.scale;
+            this.y = spider.y + Math.sin(spider.angle) * 18 * spider.scale;
+            return;
+          }
+
+          // 正常盘旋飞行逻辑
+          // 偶尔发出嗡嗡振翅音
+          if (this.lifeTime % 45 === 0 && Math.random() < 0.4) {
+            playSound('fly_buzz');
+          }
+
+          // 受到蜘蛛接近时的惊恐逃窜避让 (Panic Evade)
+          const distToSpider = Math.hypot(this.x - spider.x, this.y - spider.y);
+          if (distToSpider < 220 * spider.scale) {
+            const evadeAngle = Math.atan2(this.y - spider.y, this.x - spider.x);
+            // 爆发逃窜移速
+            this.vx += Math.cos(evadeAngle) * 0.85;
+            this.vy += Math.sin(evadeAngle) * 0.85;
+          } else {
+            // 醉汉步态自然盘旋 (Wobble)
+            this.vx += (Math.random() - 0.5) * 0.4 + Math.sin(this.lifeTime * 0.08) * 0.2;
+            this.vy += (Math.random() - 0.5) * 0.4 + Math.cos(this.lifeTime * 0.08) * 0.2;
+          }
+
+          // 限制飞虫最大移速
+          const spd = Math.hypot(this.vx, this.vy);
+          const maxSpd = distToSpider < 160 ? 5.8 : 3.8;
+          if (spd > maxSpd) {
+            this.vx = (this.vx / spd) * maxSpd;
+            this.vy = (this.vy / spd) * maxSpd;
+          }
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // 保证飞虫在当前视口可见区域盘旋（不飞出可视区域）
+          const sY = window.scrollY;
+          const vH = window.innerHeight;
+          const vW = window.innerWidth;
+          if (this.x < 60) this.vx += 0.6;
+          if (this.x > vW - 60) this.vx -= 0.6;
+          if (this.y < sY + 60) this.vy += 0.6;
+          if (this.y > sY + vH - 60) this.vy -= 0.6;
+        }
+
+        draw(ctx, scrollY) {
+          if (!this.active) return;
+          const sx = this.x;
+          const sy = this.y - scrollY;
+
+          ctx.save();
+          ctx.translate(sx, sy);
+
+          // 1. 若处于自由飞行中，绘制高辨识度的外星数码昆虫警报光标与光环
+          if (!this.isCaught) {
+            const pulse = (Math.sin(this.lifeTime * 0.15) + 1) / 2;
+            // 闪烁红色外发光信标环
+            ctx.strokeStyle = `rgba(255, 30, 66, ${0.4 + pulse * 0.5})`;
+            ctx.shadowColor = '#ff1e42';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, 18 + pulse * 6, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 昆虫名称微型标签，帮助用户一眼看见！
+            ctx.fillStyle = '#ff1e42';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('🪰 INSECT', 0, -20);
+          }
+
+          // 2. 若被捕获：显示外层被蛛丝缠绕的白色挣扎光晕
+          if (this.isCaught) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 8;
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.arc(0, 0, 14, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // 3. 苍蝇翅膀 (高速扇动发光半透明翅膀)
+          const wingSpread = Math.sin(this.wingPhase) * 10;
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.75)';
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 8;
+
+          // 左翅
+          ctx.beginPath();
+          ctx.ellipse(-4, -8 + wingSpread * 0.3, 8, Math.abs(wingSpread) + 4, Math.PI / 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 右翅
+          ctx.beginPath();
+          ctx.ellipse(4, -8 + wingSpread * 0.3, 8, Math.abs(wingSpread) + 4, -Math.PI / 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 4. 苍蝇躯体与节肢
+          ctx.fillStyle = '#141c28';
+          ctx.strokeStyle = '#39ff14'; // 荧光绿外骨骼
+          ctx.shadowColor = '#39ff14';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 5, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // 两颗鲜艳红色大复眼
+          ctx.fillStyle = '#ff1e42';
+          ctx.shadowColor = '#ff1e42';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(-2.5, -4.5, 2, 0, Math.PI * 2);
+          ctx.arc(2.5, -4.5, 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      const activeFly = new CyberFly();
+
+      // ==============================================================
+      // 7. 侧边大型发光蜘蛛网巢穴 (Cyber Spider Web Lair)
+      // ==============================================================
+      class CyberWebLair {
+        constructor() {
+          this.cachedPrey = [];
+          this.wobble = 0;
+          this.wobblePhase = 0;
+          this.spokesCount = 10;
+          this.ringsCount = 5;
+          this.updatePosition();
+        }
+
+        updatePosition() {
+          const containerLeft = (width - 880) / 2;
+          if (containerLeft > 180) {
+            this.hubX = Math.round(containerLeft * 0.48);
+          } else {
+            this.hubX = 110;
+          }
+          this.hubY = 380;
+          this.radius = Math.max(90, Math.min(180, containerLeft * 0.75 || 130));
+        }
+
+        triggerWobble(strength = 1.0) {
+          this.wobble = Math.min(1.5, this.wobble + strength);
+        }
+
+        stashPrey(pill) {
+          this.triggerWobble(0.85);
+
+          const index = this.cachedPrey.length;
+          const spokeIdx = index % this.spokesCount;
+          const ringIdx = (Math.floor(index / this.spokesCount) % (this.ringsCount - 1)) + 1;
+          const angle = (spokeIdx / this.spokesCount) * Math.PI * 2;
+          const dist = (ringIdx / this.ringsCount) * this.radius;
+
+          this.cachedPrey.push({
+            text: pill.text,
+            bgCol: pill.bgCol,
+            textCol: pill.textCol,
+            angle: angle,
+            dist: dist,
+            spokeIdx: spokeIdx,
+            ringIdx: ringIdx,
+            timeCreated: Date.now()
+          });
+
+          const countEl = document.getElementById('web-prey-count');
+          const msgEl = document.getElementById('web-status-msg');
+          if (countEl) countEl.innerText = `${this.cachedPrey.length} 件`;
+          if (msgEl) {
+            msgEl.innerText = `成功储食！(已获 ${this.cachedPrey.length} 份数据食物)`;
+            msgEl.style.color = '#ff007f';
+            setTimeout(() => {
+              msgEl.innerText = '等待投喂 (每30秒飞入小昆虫)';
+              msgEl.style.color = 'var(--accent-lime)';
+            }, 3000);
+          }
+        }
+
+        clear() {
+          this.cachedPrey = [];
+          this.triggerWobble(1.2);
+          const countEl = document.getElementById('web-prey-count');
+          if (countEl) countEl.innerText = '0 件';
+        }
+
+        update() {
+          if (this.wobble > 0.005) {
+            this.wobble *= 0.94;
+            this.wobblePhase += 0.22;
+          } else {
+            this.wobble = 0;
+          }
+        }
+
+        draw(ctx, scrollY) {
+          const screenHubX = this.hubX;
+          const screenHubY = this.hubY - scrollY;
+
+          if (screenHubY < -this.radius * 2 || screenHubY > height + this.radius * 2) return;
+
+          ctx.save();
+          const wave = Math.sin(this.wobblePhase) * this.wobble * 9;
+
+          // 1. 辐射主蛛丝
+          for (let i = 0; i < this.spokesCount; i++) {
+            const angle = (i / this.spokesCount) * Math.PI * 2;
+            const spokeR = this.radius * 1.35;
+            const endX = screenHubX + Math.cos(angle) * spokeR;
+            const endY = screenHubY + Math.sin(angle) * spokeR;
+
+            ctx.strokeStyle = `rgba(0, 240, 255, ${0.28 + this.wobble * 0.35})`;
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = this.wobble > 0.1 ? 8 : 3;
+            ctx.lineWidth = 1;
+
+            ctx.beginPath();
+            ctx.moveTo(screenHubX, screenHubY);
+            const cpX = (screenHubX + endX) / 2 + Math.sin(angle) * wave * 0.4;
+            const cpY = (screenHubY + endY) / 2 - Math.cos(angle) * wave * 0.4;
+            ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+            ctx.beginPath();
+            ctx.arc(endX, endY, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 2. 螺旋环状蛛丝
+          for (let r = 1; r <= this.ringsCount; r++) {
+            const ringRadius = (r / this.ringsCount) * this.radius;
+            const ringAlpha = 0.22 + (r / this.ringsCount) * 0.18 + this.wobble * 0.3;
+
+            ctx.strokeStyle = r % 2 === 0 ? `rgba(255, 0, 127, ${ringAlpha})` : `rgba(0, 240, 255, ${ringAlpha})`;
+            ctx.shadowColor = r % 2 === 0 ? '#ff007f' : '#00f0ff';
+            ctx.shadowBlur = 6;
+            ctx.lineWidth = 1;
+
+            ctx.beginPath();
+            for (let i = 0; i <= this.spokesCount; i++) {
+              const spokeIdx = i % this.spokesCount;
+              const angle = (spokeIdx / this.spokesCount) * Math.PI * 2;
+              const ringW = Math.sin(this.wobblePhase + r) * this.wobble * 5;
+              const currentR = ringRadius + ringW;
+
+              const x = screenHubX + Math.cos(angle) * currentR;
+              const y = screenHubY + Math.sin(angle) * currentR;
+
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+
+          // 3. 蛛网核心高能发光纽扣
+          ctx.fillStyle = '#070b12';
+          ctx.strokeStyle = '#ff007f';
+          ctx.shadowColor = '#ff007f';
+          ctx.shadowBlur = 12;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(screenHubX, screenHubY, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(screenHubX, screenHubY, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 4. 挂在蛛网上的资料食物与捕获昆虫
+          for (let prey of this.cachedPrey) {
+            const x = screenHubX + Math.cos(prey.angle) * prey.dist;
+            const y = screenHubY + Math.sin(prey.angle) * prey.dist;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(x, y, 14, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.font = 'bold 9px "JetBrains Mono", monospace';
+            const textW = ctx.measureText(prey.text).width;
+            const pillW = textW + 12;
+            const pillH = 16;
+
+            // 极简暗灰轻量化数据食物茧
+            ctx.fillStyle = prey.bgCol === '#ff1e42' ? '#ff1e42' : 'rgba(20, 26, 36, 0.92)';
+            ctx.strokeStyle = prey.bgCol === '#ff1e42' ? 'rgba(255, 30, 66, 0.8)' : 'rgba(148, 163, 184, 0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(x - pillW / 2, y - pillH / 2, pillW, pillH, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = prey.textCol === '#ffffff' ? '#ffffff' : '#cbd5e1';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(prey.text, x, y);
+
+            ctx.restore();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      const webLair = new CyberWebLair();
+
+      // ==============================================================
+      // 7.2. 数码赛博小烟火粒子特效系统 (Cyber Spark Fireworks System)
+      // 蜘蛛抓取文字瞬间，360° 绽放璀璨赛博烟花火花、星芒拖尾与扩散冲击光波！
+      // ==============================================================
+      class CyberFireworkSpark {
+        constructor(x, y, color) {
+          this.x = x;
+          this.y = y;
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2.6 + Math.random() * 5.4;
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed - 1.2; // 向上初速弹跳
+          this.color = color;
+          this.life = 1.0;
+          this.decay = 0.018 + Math.random() * 0.022; // 约 35~50 帧
+          this.radius = 2.0 + Math.random() * 2.2;
+          this.history = []; // 发光流光拖尾
+          this.flickerSpeed = 0.2 + Math.random() * 0.3;
+          this.phase = Math.random() * Math.PI * 2;
+        }
+
+        update() {
+          this.history.push({ x: this.x, y: this.y });
+          if (this.history.length > 5) this.history.shift();
+
+          this.vx *= 0.94; // 空气阻力
+          this.vy *= 0.94;
+          this.vy += 0.12; // 赛博重力
+
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life -= this.decay;
+          this.phase += this.flickerSpeed;
+        }
+
+        draw(ctx, scrollY) {
+          if (this.life <= 0) return;
+          const sx = this.x;
+          const sy = this.y - scrollY;
+
+          ctx.save();
+          const flicker = 0.75 + Math.sin(this.phase) * 0.25;
+          ctx.globalAlpha = Math.max(0, this.life * flicker);
+
+          // 1. 发光尾迹
+          if (this.history.length > 1) {
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = Math.max(1, this.radius * 0.75 * this.life);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(this.history[0].x, this.history[0].y - scrollY);
+            for (let i = 1; i < this.history.length; i++) {
+              ctx.lineTo(this.history[i].x, this.history[i].y - scrollY);
+            }
+            ctx.lineTo(sx, sy);
+            ctx.stroke();
+          }
+
+          // 2. 烟花火花本体外发光
+          ctx.fillStyle = this.color;
+          ctx.shadowColor = this.color;
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(sx, sy, this.radius * this.life, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 3. 耀眼白光核心
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 4;
+          ctx.beginPath();
+          ctx.arc(sx, sy, Math.max(0.8, this.radius * 0.45 * this.life), 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      class CyberFireworkShockwave {
+        constructor(x, y, color) {
+          this.x = x;
+          this.y = y;
+          this.color = color;
+          this.radius = 3;
+          this.maxRadius = 38 + Math.random() * 16;
+          this.life = 1.0;
+          this.decay = 0.04;
+        }
+
+        update() {
+          this.radius += (this.maxRadius - this.radius) * 0.18 + 0.8;
+          this.life -= this.decay;
+        }
+
+        draw(ctx, scrollY) {
+          if (this.life <= 0) return;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, this.life * 0.8);
+          ctx.strokeStyle = this.color;
+          ctx.shadowColor = this.color;
+          ctx.shadowBlur = 12;
+          ctx.lineWidth = 2 * this.life;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y - scrollY, this.radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      const activeFireworks = [];
+      const activeShockwaves = [];
+
+      function triggerFirework(x, y, primaryColor = '#ff007f') {
+        const palette = [primaryColor, '#00f0ff', '#39ff14', '#ffff00', '#ffffff', '#ff1e42', '#b522ff', '#ffaa00'];
+        const sparkCount = 38 + Math.floor(Math.random() * 16); // 38~54 颗小烟火火花
+        for (let i = 0; i < sparkCount; i++) {
+          const col = palette[Math.floor(Math.random() * palette.length)];
+          activeFireworks.push(new CyberFireworkSpark(x, y, col));
+        }
+        activeShockwaves.push(new CyberFireworkShockwave(x, y, primaryColor));
+        activeShockwaves.push(new CyberFireworkShockwave(x, y, '#ffffff'));
+      }
+
+      function updateAndDrawFireworks(ctx, scrollY) {
+        for (let i = activeShockwaves.length - 1; i >= 0; i--) {
+          const sw = activeShockwaves[i];
+          sw.update();
+          sw.draw(ctx, scrollY);
+          if (sw.life <= 0) activeShockwaves.splice(i, 1);
+        }
+        for (let i = activeFireworks.length - 1; i >= 0; i--) {
+          const p = activeFireworks[i];
+          p.update();
+          p.draw(ctx, scrollY);
+          if (p.life <= 0) activeFireworks.splice(i, 1);
+        }
+      }
+
+      // ==============================================================
+      // 7.5. 方案 C：全息文献星图雷达 (Holographic Constellation Radar)
+      // ==============================================================
+      function logSnifferEvent() {} // 安全占位保留，防其他调用报错
+
+      class HolographicConstellationRadar {
+        constructor(canvasId) {
+          this.canvas = document.getElementById(canvasId);
+          this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+          this.sweepAngle = 0;
+          this.pulseRipples = [];
+          this.hoveredNode = null;
+          this.initEvents();
+        }
+
+        initEvents() {
+          if (!this.canvas) return;
+          const tooltip = document.getElementById('radar-hover-tooltip');
+          const coordEl = document.getElementById('radar-coord-readout');
+
+          // 鼠标在雷达上移动查看对应文献节点
+          this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const rx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const ry = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+            const target = this.findClosestRadarNode(rx, ry);
+            this.hoveredNode = target;
+
+            if (target && tooltip) {
+              tooltip.innerText = `🎯 锁定: ${target.text.slice(0, 16)}`;
+              tooltip.style.color = '#00f0ff';
+            } else if (tooltip) {
+              tooltip.innerText = `🎯 点击雷达星图 立即调度爬虫`;
+              tooltip.style.color = 'var(--accent-cyan)';
+            }
+
+            if (coordEl) {
+              const worldPos = this.radarToWorld(rx, ry);
+              coordEl.innerText = `COORD: [${Math.round(worldPos.x)}, ${Math.round(worldPos.y)}]`;
+            }
+          });
+
+          this.canvas.addEventListener('mouseleave', () => {
+            this.hoveredNode = null;
+            if (tooltip) tooltip.innerText = `🎯 点击雷达星图 立即调度爬虫`;
+          });
+
+          // 点击雷达直接把蜘蛛派遣去该星图节点！
+          this.canvas.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = this.canvas.getBoundingClientRect();
+            const rx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const ry = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+            // 添加扩散声呐波纹
+            this.pulseRipples.push({ x: rx, y: ry, radius: 3, maxRadius: 42, alpha: 1.0 });
+
+            // 若正叼着飞虫，立即自动挂入蛛网食物库
+            if (crawler.isCarryingFly) {
+              crawler.isCarryingFly = false;
+              crawler.eyesRed = false;
+              activeFly.active = false;
+              activeFly.isCaught = false;
+              webLair.stashPrey({ text: '🪰 INSECT_#01 ↗', bgCol: '#ff1e42', textCol: '#ffffff' });
+            }
+            if (crawler.isHuntingFly) {
+              crawler.isHuntingFly = false;
+              crawler.eyesRed = false;
+            }
+
+            const target = this.findClosestRadarNode(rx, ry);
+            if (target) {
+              crawler.destX = target.x;
+              crawler.destY = target.y;
+              crawler.currentTarget = target;
+              crawler.isExecutingPriorityTask = true;
+              crawler.targetOrigin = 'user';
+              crawler.isInspectingEmptySpot = false;
+              crawler.scanProgress = 0;
+              crawler.isScanning = false;
+              playSound('scan', crawler.scale);
+              if (tooltip) {
+                tooltip.innerText = `⚡ 派遣往: ${target.text.slice(0, 14)}`;
+                tooltip.style.color = '#39ff14';
+              }
+            } else {
+              const worldPos = this.radarToWorld(rx, ry);
+              crawler.destX = worldPos.x;
+              crawler.destY = worldPos.y;
+              if (currentMode === 'auto') {
+                crawler.currentTarget = null;
+                crawler.isInspectingEmptySpot = true;
+                crawler.inspectTimer = Math.round(35 / crawler.speedMultiplier);
+                crawler.isExecutingPriorityTask = false;
+              } else {
+                crawler.currentTarget = {
+                  el: null,
+                  x: worldPos.x,
+                  y: worldPos.y,
+                  text: `RADAR_POINT_${Math.floor(Math.random() * 8999 + 1000)} ↗`
+                };
+                crawler.isExecutingPriorityTask = true;
+                crawler.targetOrigin = 'user';
+                crawler.isInspectingEmptySpot = false;
+              }
+              playSound('step', crawler.scale * 1.3);
+            }
+          });
+
+          // 脉冲扫描按钮
+          const pingBtn = document.getElementById('btn-radar-ping');
+          if (pingBtn) {
+            pingBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.pulseRipples.push({
+                x: this.canvas.width / 2,
+                y: this.canvas.height / 2,
+                radius: 4,
+                maxRadius: 88,
+                alpha: 1.0
+              });
+              playSound('predator_alert', 1.5);
+            });
+          }
+        }
+
+        // 世界坐标映射到雷达坐标
+        worldToRadar(wx, wy) {
+          const cw = this.canvas.width;
+          const ch = this.canvas.height;
+          const cx = cw / 2;
+          const cy = ch / 2;
+          const R = Math.min(cw, ch) * 0.42;
+
+          const totalDocWidth = Math.max(window.innerWidth, document.documentElement.scrollWidth || 1280);
+          const totalDocHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight || 3000);
+
+          const normX = (wx - totalDocWidth / 2) / (totalDocWidth / 2);
+          const normY = (wy - totalDocHeight / 2) / (totalDocHeight / 2);
+
+          return {
+            x: cx + normX * (R * 0.88),
+            y: cy + normY * (R * 0.88)
+          };
+        }
+
+        // 雷达坐标逆向映射到世界坐标
+        radarToWorld(rx, ry) {
+          const cw = this.canvas.width;
+          const ch = this.canvas.height;
+          const cx = cw / 2;
+          const cy = ch / 2;
+          const R = Math.min(cw, ch) * 0.42;
+
+          const totalDocWidth = Math.max(window.innerWidth, document.documentElement.scrollWidth || 1280);
+          const totalDocHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight || 3000);
+
+          const normX = (rx - cx) / (R * 0.88);
+          const normY = (ry - cy) / (R * 0.88);
+
+          return {
+            x: Math.max(40, Math.min(totalDocWidth - 40, totalDocWidth / 2 + normX * (totalDocWidth / 2))),
+            y: Math.max(40, Math.min(totalDocHeight - 40, totalDocHeight / 2 + normY * (totalDocHeight / 2)))
+          };
+        }
+
+        findClosestRadarNode(rx, ry) {
+          const targets = getTargetElements();
+          let closest = null;
+          let minDist = 18;
+          for (let t of targets) {
+            const rPos = this.worldToRadar(t.x, t.y);
+            const d = Math.hypot(rPos.x - rx, rPos.y - ry);
+            if (d < minDist) {
+              minDist = d;
+              closest = t;
+            }
+          }
+          return closest;
+        }
+
+        updateAndDraw(crawler, targets, activeFly) {
+          if (!this.ctx || !this.canvas) return;
+          const ctx = this.ctx;
+          const w = this.canvas.width;
+          const h = this.canvas.height;
+          const cx = w / 2;
+          const cy = h / 2;
+          const R = Math.min(w, h) * 0.42;
+
+          ctx.clearRect(0, 0, w, h);
+
+          // 1. 雷达极坐标圆环与同心十字线
+          ctx.save();
+
+          // 背景微网格
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(cx, cy, R * 0.33, 0, Math.PI * 2);
+          ctx.arc(cx, cy, R * 0.66, 0, Math.PI * 2);
+          ctx.arc(cx, cy, R, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 极轴十字准星
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.16)';
+          ctx.beginPath();
+          ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+          ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+          const d45 = R * 0.707;
+          ctx.moveTo(cx - d45, cy - d45); ctx.lineTo(cx + d45, cy + d45);
+          ctx.moveTo(cx - d45, cy + d45); ctx.lineTo(cx + d45, cy - d45);
+          ctx.stroke();
+
+          // 2. 连续 360° 旋转扫描波束 (Sweeping Beam with Phosphor Fade Trail)
+          this.sweepAngle += 0.036 * crawler.speedMultiplier;
+          const sweepGradient = ctx.createRadialGradient(cx, cy, 2, cx, cy, R);
+          sweepGradient.addColorStop(0, 'rgba(0, 240, 255, 0.35)');
+          sweepGradient.addColorStop(1, 'rgba(0, 240, 255, 0)');
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, R, this.sweepAngle - 0.48, this.sweepAngle);
+          ctx.closePath();
+          ctx.fillStyle = sweepGradient;
+          ctx.fill();
+
+          // 亮线扫描边缘
+          ctx.strokeStyle = 'rgba(57, 255, 20, 0.8)';
+          ctx.shadowColor = '#39ff14';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(this.sweepAngle) * R, cy + Math.sin(this.sweepAngle) * R);
+          ctx.stroke();
+          ctx.restore();
+
+          // 3. 当前视口视窗微型指示矩形 (Viewport Mini Box)
+          const totalDocWidth = Math.max(window.innerWidth, document.documentElement.scrollWidth || 1280);
+          const totalDocHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight || 3000);
+          const vpTopLeft = this.worldToRadar(window.scrollX, window.scrollY);
+          const vpBottomRight = this.worldToRadar(window.scrollX + window.innerWidth, window.scrollY + window.innerHeight);
+
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 3]);
+          ctx.strokeRect(vpTopLeft.x, vpTopLeft.y, vpBottomRight.x - vpTopLeft.x, vpBottomRight.y - vpTopLeft.y);
+          ctx.setLineDash([]);
+
+          // 4. 文献星图节点之间的微光连线 (Constellation Links)
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          const mappedTargets = [];
+          let uncrawledCount = 0;
+          let crawledCount = 0;
+
+          for (let t of targets) {
+            const rPos = this.worldToRadar(t.x, t.y);
+            const isMutated = t.el && t.el.className.includes('scanned-preset');
+            if (isMutated) crawledCount++;
+            else uncrawledCount++;
+
+            mappedTargets.push({ target: t, rx: rPos.x, ry: rPos.y, isMutated });
+          }
+
+          for (let i = 0; i < mappedTargets.length; i++) {
+            for (let j = i + 1; j < mappedTargets.length; j++) {
+              const d = Math.hypot(mappedTargets[i].rx - mappedTargets[j].rx, mappedTargets[i].ry - mappedTargets[j].ry);
+              if (d < 36) {
+                ctx.moveTo(mappedTargets[i].rx, mappedTargets[i].ry);
+                ctx.lineTo(mappedTargets[j].rx, mappedTargets[j].ry);
+              }
+            }
+          }
+          ctx.stroke();
+
+          // 更新待扫 / 变异计数
+          const unEl = document.getElementById('radar-uncrawled-count');
+          const crEl = document.getElementById('radar-crawled-count');
+          if (unEl) unEl.innerText = `待扫: ${uncrawledCount}`;
+          if (crEl) crEl.innerText = `变异: ${crawledCount}`;
+
+          // 5. 绘制各个文献节点星图光点
+          for (let mt of mappedTargets) {
+            const isHovered = this.hoveredNode && this.hoveredNode === mt.target;
+            const isCurrent = crawler.currentTarget && crawler.currentTarget.el === mt.target.el;
+
+            const dotColor = mt.isMutated ? '#ff007f' : '#00f0ff';
+            ctx.fillStyle = isHovered ? '#ffffff' : dotColor;
+            ctx.shadowColor = dotColor;
+            ctx.shadowBlur = isHovered || isCurrent ? 8 : 4;
+
+            ctx.beginPath();
+            const dotR = isHovered || isCurrent ? 3.5 : 2.2;
+            ctx.arc(mt.rx, mt.ry, dotR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 如果正在被大蜘蛛扫描或悬浮选中：绘制光晕准星环
+            if (isHovered || isCurrent) {
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.arc(mt.rx, mt.ry, 6.5, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+
+          // 6. 绘制左侧蛛网基地位置
+          const lairPos = this.worldToRadar(webLair.hubX, webLair.hubY);
+          ctx.fillStyle = '#ff007f';
+          ctx.shadowColor = '#ff007f';
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(lairPos.x, lairPos.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 7. 绘制入侵的小飞虫 (若存在：高频闪烁红色小三角)
+          if (activeFly && activeFly.active) {
+            const flyPos = this.worldToRadar(activeFly.x, activeFly.y);
+            ctx.fillStyle = '#ff1e42';
+            ctx.shadowColor = '#ff1e42';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(flyPos.x, flyPos.y - 4);
+            ctx.lineTo(flyPos.x + 3.5, flyPos.y + 3);
+            ctx.lineTo(flyPos.x - 3.5, flyPos.y + 3);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // 8. 绘制母机械蜘蛛实时位置 (Bright Yellow Pulsing Star)
+          const spiderPos = this.worldToRadar(crawler.x, crawler.y);
+          ctx.fillStyle = '#ffff00';
+          ctx.shadowColor = crawler.eyesRed ? '#ff1e42' : '#ffff00';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(spiderPos.x, spiderPos.y, 3.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 蜘蛛朝向微指示线
+          ctx.strokeStyle = '#ffff00';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(spiderPos.x, spiderPos.y);
+          ctx.lineTo(spiderPos.x + Math.cos(crawler.angle) * 7, spiderPos.y + Math.sin(crawler.angle) * 7);
+          ctx.stroke();
+
+          // 10. 点击扩散声呐波纹 (Pulse Ripples)
+          for (let i = this.pulseRipples.length - 1; i >= 0; i--) {
+            const rip = this.pulseRipples[i];
+            rip.radius += 1.8;
+            rip.alpha -= 0.035;
+
+            ctx.strokeStyle = `rgba(0, 240, 255, ${Math.max(0, rip.alpha)})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(rip.x, rip.y, rip.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            if (rip.alpha <= 0 || rip.radius >= rip.maxRadius) {
+              this.pulseRipples.splice(i, 1);
+            }
+          }
+
+          ctx.restore();
+        }
+      }
+
+      const constellationRadar = new HolographicConstellationRadar('radar-canvas');
+
+      // ==============================================================
+      // 7.8. 右下方全息星图雷达折叠/展开逻辑 (跟着画面游走)
+      // ==============================================================
+      const radarToggleBtn = document.getElementById('radar-toggle-btn');
+      const cyberRadarWidget = document.getElementById('cyber-radar-widget');
+      if (radarToggleBtn && cyberRadarWidget) {
+        radarToggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          cyberRadarWidget.classList.toggle('is-collapsed');
+          radarToggleBtn.innerText = cyberRadarWidget.classList.contains('is-collapsed') ? '▲' : '▼';
+        });
+
+        cyberRadarWidget.addEventListener('click', () => {
+          if (cyberRadarWidget.classList.contains('is-collapsed')) {
+            cyberRadarWidget.classList.remove('is-collapsed');
+            radarToggleBtn.innerText = '▼';
+          }
+        });
+      }
+
+      // 8. 实体数据药丸 (用户指令：抓取后带着的文字无繁重发光效果，以素雅暗灰色显示，轻量流畅)
+      class UserTetheredPill {
+        constructor(text, bgCol, textCol, targetX, targetY, scale = 1.0) {
+          this.text = text;
+          // 纯粹灰色无色显示
+          this.bgCol = 'rgba(20, 26, 36, 0.9)';
+          this.textCol = '#cbd5e1';
+          this.scale = scale;
+          this.x = targetX + (Math.random() - 0.5) * 60;
+          this.y = targetY + (Math.random() - 0.5) * 60;
+          this.vx = 0;
+          this.vy = 0;
+          this.angle = (Math.random() - 0.5) * 0.25;
+          this.springDist = (60 + Math.random() * 20) * Math.max(1, scale * 0.85);
+        }
+
+        update(anchorX, anchorY) {
+          const dx = anchorX - this.x;
+          const dy = anchorY - this.y;
+          const dist = Math.hypot(dx, dy);
+
+          const force = (dist - this.springDist) * 0.06;
+          const angle = Math.atan2(dy, dx);
+
+          this.vx += Math.cos(angle) * force;
+          this.vy += Math.sin(angle) * force;
+
+          this.vx *= 0.82;
+          this.vy *= 0.82;
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          const targetAngle = Math.atan2(this.vy, this.vx) * 0.25;
+          this.angle += (targetAngle - this.angle) * 0.1;
+        }
+
+        draw(ctx, scrollY, anchorX, anchorY) {
+          const screenX = this.x;
+          const screenY = this.y - scrollY;
+          const screenAnchorX = anchorX;
+          const screenAnchorY = anchorY - scrollY;
+
+          // 1. 拖带细丝：纯粹浅灰极细微线，完全零 shadowBlur，极大降低 GPU 渲染负担
+          ctx.save();
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+          ctx.lineWidth = 1 * this.scale;
+          ctx.beginPath();
+          ctx.moveTo(screenAnchorX, screenAnchorY);
+          ctx.lineTo(screenX, screenY);
+          ctx.stroke();
+          ctx.restore();
+
+          // 2. 携带的文字：清爽灰色显示，无浓烈色彩与外发光
+          ctx.save();
+          ctx.translate(screenX, screenY);
+          ctx.rotate(this.angle);
+
+          const fontSize = Math.round(10.5 * Math.min(1.3, this.scale));
+          ctx.font = `500 ${fontSize}px "JetBrains Mono", monospace`;
+          const textW = ctx.measureText(this.text).width;
+          const pillW = textW + 14 * this.scale;
+          const pillH = 18 * this.scale;
+
+          // 暗灰半透底板 + 极细无色边框 (零 shadowBlur，零卡顿)
+          ctx.fillStyle = 'rgba(18, 24, 34, 0.9)';
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(-pillW / 2, -pillH / 2, pillW, pillH, 3 * this.scale);
+          ctx.fill();
+          ctx.stroke();
+
+          // 素雅浅灰文字
+          ctx.fillStyle = '#cbd5e1';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(this.text, 0, 0.5);
+
+          ctx.restore();
+        }
+      }
+
+      // 9. 三大品种配置
+      const SPECIES_CONFIGS = {
+        weaver: {
+          name: '织网长腿 / Kaki Panjang',
+          bodyBg: '#080c14',
+          bodyBorder: '#ff007f',
+          coreDot: '#ffff00',
+          legColor: '#3d7eff',
+          jointColor: '#00f0ff',
+          meshColor: 'rgba(61, 126, 255, 0.45)',
+          baseSpeed: 2.7,
+          turnSpeed: 0.08,
+          strideThreshold: 50,
+          l1: 44,
+          l2: 54,
+          restDistMultiplier: 1.35,
+          hasEyeCone: true, // 开启长腿眼睛前向强光照射特效
+          hasEyeLight: true,
+          eyeBeamLength: 195, // 优雅适中的探照光锥
+          eyeBeamSpread: 0.28, // 凝聚的光锥角度
+          eyeBeamColor: 'rgba(0, 220, 255, 0.075)', // 配合织网长腿的青蓝透明淡雅光色
+          eyeBeamCoreColor: 'rgba(230, 250, 255, 0.22)',
+          hasFangs: false,
+          hasWebMesh: true
+        },
+        watcher: {
+          name: '大眼探秘 / Mata Besar',
+          bodyBg: '#091219',
+          bodyBorder: '#00f0ff',
+          coreDot: '#ffaa00',
+          legColor: '#00f0ff',
+          jointColor: '#ffaa00',
+          meshColor: 'rgba(0, 240, 255, 0.25)',
+          baseSpeed: 2.4,
+          turnSpeed: 0.09,
+          strideThreshold: 42,
+          l1: 34,
+          l2: 42,
+          restDistMultiplier: 1.0,
+          hasEyeCone: true,
+          hasEyeLight: true,
+          eyeBeamLength: 165,
+          eyeBeamSpread: 0.35,
+          eyeBeamColor: 'rgba(0, 240, 255, 0.07)',
+          eyeBeamCoreColor: 'rgba(230, 250, 255, 0.2)',
+          hasFangs: false,
+          hasWebMesh: false
+        },
+        berserker: {
+          name: '凶暴疾行 / Ganas',
+          bodyBg: '#18070a',
+          bodyBorder: '#ff1e42',
+          coreDot: '#ff9100',
+          legColor: '#ff1e42',
+          jointColor: '#ff9100',
+          meshColor: 'rgba(255, 30, 66, 0.35)',
+          baseSpeed: 4.2,
+          turnSpeed: 0.14,
+          strideThreshold: 40,
+          l1: 30,
+          l2: 38,
+          restDistMultiplier: 0.95,
+          hasEyeCone: false,
+          hasEyeLight: true,
+          eyeBeamLength: 150,
+          eyeBeamSpread: 0.25,
+          eyeBeamColor: 'rgba(255, 30, 66, 0.075)',
+          eyeBeamCoreColor: 'rgba(255, 200, 215, 0.2)',
+          hasFangs: true,
+          hasWebMesh: false
+        }
+      };
+
+      // ==============================================================
+      // 10. 机械蜘蛛核心类 (融入活体停歇呼吸微动 + 红眼暴走追捕飞虫)
+      // ==============================================================
+      class CyberSpider {
+        constructor(x, y, speciesKey = 'weaver', scale = 1.0) {
+          this.x = x;
+          this.y = y;
+          this.angle = 0;
+          this.scale = scale;
+          this.speedMultiplier = currentSpeedMultiplier;
+          this.setSpecies(speciesKey);
+
+          this.destX = x;
+          this.destY = y;
+          this.stateTimer = 0;
+
+          // 核心控制标志
+          this.isExecutingPriorityTask = false;
+          this.isStashingFood = false;
+          this.isHuntingFly = false;   // 是否正暴走追捕小飞虫！
+          this.isCarryingFly = false;  // 是否正咬着飞虫运往蜘蛛网！
+          this.eyesRed = false;        // 眼睛是否处于捕食血红状态！
+
+          // 活体停歇微动控制 (Organic Idle Life System)
+          this.idleTicks = 0;
+          this.idleBob = 0;
+          this.headTwitchAngle = 0;
+          this.targetHeadTwitch = 0;
+
+          this.currentTarget = null;
+          this.targetOrigin = 'auto';
+          this.isScanning = false;
+          this.scanProgress = 0;
+          this.autoHarvestCooldown = 0; // 自主漫游时抓取完成后的停歇冷却
+          this.isInspectingEmptySpot = false; // 用户在漫游时点击空位的好奇探查状态
+          this.inspectTimer = 0;
+
+          this.userTetheredPills = [
+            new UserTetheredPill('83825904 ↗', '#ff007f', '#ffffff', x - 45, y + 30, scale),
+            new UserTetheredPill('883 ↗', '#00f0ff', '#000000', x + 50, y - 25, scale)
+          ];
+
+          this.bodyBadge = 'doi:10.1038';
+          this.legs = [];
+          this.initLegs();
+          this.gaitGroup = 0;
+
+          // 惊悚特技拟物系统 (自主偶发飞扑突脸吓人 / 隐匿消散倒挂吊落)
+          this.trickState = null; // null | 'pounce' | 'rappel'
+          this.trickTimer = 0;
+          this.trickCooldown = 750 + Math.random() * 600; // ~12-22秒尝试首次特技
+          this.jumpScale = 1.0;
+          this.jumpGlitch = 0;
+          this.trickOpacity = 1.0;
+          this.silkAnchorY = 0;
+          this.rappelStartY = 0;
+          this.rappelTargetY = 0;
+        }
+
+        startTrick(trickType) {
+          if (this.isHuntingFly || this.isCarryingFly || this.isStashingFood) return;
+          if (this.currentTarget && this.currentTarget.el) {
+            this.currentTarget.el.classList.remove('is-being-scanned');
+          }
+          this.currentTarget = null;
+          this.isScanning = false;
+          this.scanProgress = 0;
+
+          if (trickType === 'pounce') {
+            this.trickState = 'pounce';
+            this.trickTimer = 0;
+            playSound('jumpscare', this.scale);
+            document.getElementById('hud-status-badge').innerText = '⚡ 飞扑突脸中...';
+            logSnifferEvent('TRICK', '🕷️ 蜘蛛发狂蓄力，向屏幕发起拟物飞扑突脸！', 'JUMPSCARE');
+          } else {
+            this.trickState = 'rappel';
+            this.trickTimer = 0;
+            // 真实长白丝从屏幕最顶部甚至视口上方垂落下来
+            const screenTopWorldY = window.scrollY - 160;
+            this.silkAnchorY = screenTopWorldY;
+            this.rappelStartY = screenTopWorldY - 30;
+            this.rappelTargetY = this.y;
+            this.angle = Math.PI / 2; // 真实蜘蛛倒挂：头朝下！
+            playSound('silk_drop', this.scale);
+            document.getElementById('hud-status-badge').innerText = '🕸️ 吐白丝倒挂吊落中...';
+            logSnifferEvent('TRICK', '🌫️ 蜘蛛遁入暗影消散，自顶端吐长白丝垂落倒挂', 'SILK RAPPEL');
+          }
+        }
+
+        setSpeedMultiplier(spd) {
+          this.speedMultiplier = spd;
+          this.speed = this.cfg.baseSpeed * Math.max(0.9, Math.sqrt(this.scale)) * this.speedMultiplier;
+        }
+
+        setScale(newScale) {
+          this.scale = newScale;
+          this.rebuildLegDimensions();
+          this.userTetheredPills.forEach(p => p.scale = newScale);
+        }
+
+        setSpecies(speciesKey) {
+          this.speciesKey = speciesKey;
+          this.species = speciesKey;
+          this.cfg = SPECIES_CONFIGS[speciesKey];
+          this.speed = this.cfg.baseSpeed * Math.max(0.9, Math.sqrt(this.scale)) * this.speedMultiplier;
+          this.turnSpeed = this.cfg.turnSpeed * Math.min(1.8, Math.max(0.8, this.speedMultiplier));
+          this.strideThreshold = this.cfg.strideThreshold * this.scale;
+          if (this.legs && this.legs.length > 0) {
+            this.rebuildLegDimensions();
+          }
+        }
+
+        initLegs() {
+          this.legs = [];
+          for (let i = 0; i < 8; i++) {
+            const isRightSide = i < 4;
+            const legIndex = isRightSide ? i : i - 4;
+
+            const hipForward = (1.5 - legIndex) * 8 * this.scale;
+            const hipLateral = (isRightSide ? 14 : -14) * this.scale;
+
+            const restDist = (54 + (legIndex === 0 || legIndex === 3 ? 16 : 8)) * this.cfg.restDistMultiplier * this.scale;
+            const restAngleOffset = (isRightSide ? 1 : -1) * (0.75 + legIndex * 0.42);
+
+            const initialFootX = this.x + Math.cos(this.angle + restAngleOffset) * restDist;
+            const initialFootY = this.y + Math.sin(this.angle + restAngleOffset) * restDist;
+
+            this.legs.push({
+              id: i,
+              isRightSide,
+              legIndex,
+              hipForward,
+              hipLateral,
+              restDist,
+              restAngleOffset,
+              l1: this.cfg.l1 * this.scale,
+              l2: this.cfg.l2 * this.scale,
+              footX: initialFootX,
+              footY: initialFootY,
+              prevFootX: initialFootX,
+              prevFootY: initialFootY,
+              stepTargetX: initialFootX,
+              stepTargetY: initialFootY,
+              isStepping: false,
+              stepProgress: 1.0,
+              gaitGroup: (isRightSide ? legIndex : legIndex + 1) % 2
+            });
+          }
+        }
+
+        rebuildLegDimensions() {
+          this.speed = this.cfg.baseSpeed * Math.max(0.9, Math.sqrt(this.scale)) * this.speedMultiplier;
+          this.strideThreshold = this.cfg.strideThreshold * this.scale;
+          for (let leg of this.legs) {
+            leg.hipForward = (1.5 - leg.legIndex) * 8 * this.scale;
+            leg.hipLateral = (leg.isRightSide ? 14 : -14) * this.scale;
+            leg.l1 = this.cfg.l1 * this.scale;
+            leg.l2 = this.cfg.l2 * this.scale;
+            leg.restDist = (54 + (leg.legIndex === 0 || leg.legIndex === 3 ? 16 : 8)) * this.cfg.restDistMultiplier * this.scale;
+          }
+        }
+
+        update(targets) {
+          this.stateTimer++;
+
+          // ==========================================
+          // 0. 特技状态机 (飞扑突脸吓人 / 隐匿消散吐丝倒挂)
+          // 【用户指令规则】：这种效果的时候如苍蝇出来就无需理会。。效果完毕才去抓小昆虫！
+          // ==========================================
+          if (this.trickState) {
+            this.trickTimer++;
+
+            if (this.trickState === 'pounce') {
+              // 飞扑突脸特技 (总时长约 110 帧，~1.8秒)
+              if (this.trickTimer < 25) {
+                // 1. 蓄力下潜阶段 (Crouch & Hiss)
+                const p = this.trickTimer / 25;
+                this.jumpScale = 1.0 - p * 0.15;
+                this.eyesRed = true;
+                this.jumpGlitch = Math.random() * 2;
+              } else if (this.trickTimer < 45) {
+                // 2. 爆炸性飞扑向屏幕！(Explosive Jump Towards Screen)
+                const p = (this.trickTimer - 25) / 20;
+                const ease = p * p * (3 - 2 * p); // smoothstep
+                this.jumpScale = 0.85 + ease * 2.35; // 飙升至 3.2x 巨大化突脸！
+                this.jumpGlitch = (1 - p) * 8 + Math.random() * 4;
+              } else if (this.trickTimer < 80) {
+                // 3. 巨蛛贴屏吓人微动！(Close-up Screen Menace)
+                this.jumpScale = 3.2 + Math.sin(this.trickTimer * 0.3) * 0.15;
+                this.jumpGlitch = Math.random() * 3;
+                this.eyesRed = true;
+                for (let leg of this.legs) {
+                  leg.footX += (Math.random() - 0.5) * 5 * this.scale;
+                  leg.footY += (Math.random() - 0.5) * 5 * this.scale;
+                }
+              } else if (this.trickTimer < 105) {
+                // 4. 重重落地回归！(Impact Landing)
+                const p = (this.trickTimer - 80) / 25;
+                const ease = p * p;
+                this.jumpScale = 3.2 - ease * 2.2;
+                this.jumpGlitch = (1 - p) * 3;
+              } else {
+                // 5. 特技完毕，平稳收工！
+                this.jumpScale = 1.0;
+                this.jumpGlitch = 0;
+                this.eyesRed = false;
+                this.trickState = null;
+                this.trickCooldown = 1500 + Math.random() * 900;
+                playSound('step', this.scale * 2.0);
+                document.getElementById('hud-status-badge').innerText = this.cfg.name.split('/')[0].trim();
+                logSnifferEvent('TRICK', '🕷️ 飞扑突脸特技完成，机械蜘蛛回归潜行状态', 'NORMAL');
+              }
+            } else if (this.trickState === 'rappel') {
+              // 真实蜘蛛隐匿消散·吐长白丝倒挂垂落拟物特技 (总时长约 220 帧，~3.6秒)
+              if (this.trickTimer < 28) {
+                // 1. 拟物暗影快速消散
+                this.trickOpacity = Math.max(0, 1 - (this.trickTimer / 28));
+              } else if (this.trickTimer < 50) {
+                // 2. 完全消失不见 (在屏幕上方高处准备垂落)
+                this.trickOpacity = 0;
+                this.y = this.rappelStartY;
+                this.angle = Math.PI / 2; // 倒立：头朝下
+              } else if (this.trickTimer < 165) {
+                // 3. 从天而降！吐长白丝倒挂吊落！
+                this.trickOpacity = 1.0;
+                const p = (this.trickTimer - 50) / 115;
+                // 真实重力与蛛丝阻尼弹性下落：快速下坠，接近底部时产生蛛丝弹性缓冲弹动
+                const dropEase = 1 - Math.cos(p * Math.PI * 0.5);
+                const bounce = Math.sin(p * Math.PI * 3.5) * (1 - p) * 16 * this.scale;
+                this.y = this.rappelStartY + (this.rappelTargetY - this.rappelStartY) * dropEase + bounce;
+                // 空气微风导致的长丝钟摆轻柔摆动 (真实物理摆动)
+                this.angle = Math.PI / 2 + Math.sin(p * Math.PI * 2.8) * 0.16 * (1 - p * 0.6);
+              } else if (this.trickTimer < 195) {
+                // 4. 前爪触地！收起长白蛛丝，轻盈转正身姿
+                this.y += (this.rappelTargetY - this.y) * 0.18;
+                this.angle += (0 - this.angle) * 0.12;
+              } else {
+                // 5. 特技圆满完成，丝线断开消散，回归漫游
+                this.trickOpacity = 1.0;
+                this.trickState = null;
+                this.angle = 0;
+                this.y = this.rappelTargetY;
+                this.trickCooldown = 1500 + Math.random() * 900;
+                playSound('step', this.scale * 1.5);
+                document.getElementById('hud-status-badge').innerText = this.cfg.name.split('/')[0].trim();
+                logSnifferEvent('TRICK', '🕸️ 吐白丝倒挂特技完成，机械蜘蛛优雅归位', 'NORMAL');
+              }
+
+              // 倒吊期间使用专属的真实蜘蛛悬空肢足抓丝与探地动作
+              if (this.trickOpacity > 0.05 && this.trickTimer >= 50 && this.trickTimer < 190) {
+                this.updateDanglingLegs();
+              } else {
+                this.updateGait();
+              }
+              return;
+            }
+          }
+
+          // 自动偶发触发惊悚特技 (在自主漫游空闲时，每隔约 20~35 秒自动出现)
+          if (!this.trickState && !this.isHuntingFly && !this.isCarryingFly && !this.isStashingFood && !this.isExecutingPriorityTask && !this.isScanning) {
+            this.trickCooldown--;
+            if (this.trickCooldown <= 0) {
+              const trickType = Math.random() < 0.5 ? 'pounce' : 'rappel';
+              this.startTrick(trickType);
+              return;
+            }
+          }
+
+          // ==========================================
+          // 【核心功能】：小飞虫感知与红眼暴走追捕！
+          // (用户指令：特技执行完毕才去抓小昆虫)
+          // ==========================================
+          if (!this.trickState && activeFly.active && !activeFly.isCaught && !this.isCarryingFly) {
+            if (!this.isHuntingFly) {
+              this.isHuntingFly = true;
+              this.eyesRed = true; // 眼睛变红不受控！
+              // 清理之前的目标，防止回网后锁死在之前目标！
+              if (this.currentTarget && this.currentTarget.el) {
+                this.currentTarget.el.classList.remove('is-being-scanned');
+              }
+              this.currentTarget = null;
+              this.isScanning = false;
+              this.scanProgress = 0;
+              playSound('predator_alert', this.scale);
+              document.getElementById('hud-status-badge').innerText = '🚨 发现飞虫！暴走捕食中...';
+              logSnifferEvent('ALERT', '🚨 发现小飞虫入侵！双眼暴走锁定', `COORDS [${Math.round(activeFly.x)},${Math.round(activeFly.y)}]`);
+            }
+            // 锁定飞虫进行狂暴冲刺！
+            this.destX = activeFly.x;
+            this.destY = activeFly.y;
+          }
+
+          // 检查资料满 3 个回巢储食
+          if (this.userTetheredPills.length >= 3 && !this.isStashingFood && !this.isHuntingFly && !this.isCarryingFly) {
+            if (this.currentTarget && this.currentTarget.el) {
+              this.currentTarget.el.classList.remove('is-being-scanned');
+            }
+            this.isStashingFood = true;
+            this.isExecutingPriorityTask = false;
+            this.currentTarget = null;
+            this.destX = webLair.hubX;
+            this.destY = webLair.hubY;
+            document.getElementById('hud-status-badge').innerText = '🕸️ 储食挂网中...';
+            logSnifferEvent('STASH', '🕸️ 资料已满 3 件，开始回巢储食', 'HEADING TO WEB');
+          }
+
+          // 1. 移动目的地决策
+          this.decideTarget(targets);
+
+          // 2. 转向与移动
+          const dx = this.destX - this.x;
+          const dy = this.destY - this.y;
+          const distToDest = Math.hypot(dx, dy);
+
+          // 追捕猎物时速度提升 +75%
+          const currentActualSpeed = this.isHuntingFly ? this.speed * 1.75 : this.speed;
+
+          if (distToDest > 8 * this.scale) {
+            this.idleTicks = 0;
+            const targetAngle = Math.atan2(dy, dx);
+            let diffAngle = targetAngle - this.angle;
+            while (diffAngle < -Math.PI) diffAngle += Math.PI * 2;
+            while (diffAngle > Math.PI) diffAngle -= Math.PI * 2;
+
+            this.angle += diffAngle * (this.isHuntingFly ? this.turnSpeed * 1.6 : this.turnSpeed);
+
+            if (Math.abs(diffAngle) < 1.3) {
+              const moveDist = Math.min(currentActualSpeed, distToDest);
+              this.x += Math.cos(this.angle) * moveDist;
+              this.y += Math.sin(this.angle) * moveDist;
+            }
+          } else {
+            // ==========================================
+            // 【核心功能】：活体静止微动 (停着的时候像活蜘蛛一样微动)
+            // ==========================================
+            this.idleTicks++;
+
+            // 1. 身体微弱呼吸起伏 (Breathing Bob)
+            this.idleBob = Math.sin(this.idleTicks * 0.06) * 1.4 * this.scale;
+
+            // 2. 头部左右微动观察环境 (Scanning Head Twitches)
+            if (this.idleTicks % 70 === 0) {
+              // 随机左右轻微晃头
+              this.targetHeadTwitch = (Math.random() - 0.5) * 0.26;
+            }
+            this.headTwitchAngle += (this.targetHeadTwitch - this.headTwitchAngle) * 0.08;
+
+            // 3. 腿部偶然位置微调踩踏 (Organic Leg Probing)
+            if (this.idleTicks % 85 === 0 && Math.random() < 0.65) {
+              // 随机挑选一只前足抬起轻踏一下探索地面
+              const pickLeg = this.legs[Math.floor(Math.random() * 8)];
+              if (!pickLeg.isStepping) {
+                pickLeg.isStepping = true;
+                pickLeg.stepProgress = 0;
+                pickLeg.prevFootX = pickLeg.footX;
+                pickLeg.prevFootY = pickLeg.footY;
+                pickLeg.stepTargetX = pickLeg.footX + (Math.random() - 0.5) * 8 * this.scale;
+                pickLeg.stepTargetY = pickLeg.footY + (Math.random() - 0.5) * 8 * this.scale;
+                playSound('step', this.scale * 1.2);
+              }
+            }
+          }
+
+          // 3. 驱动 8 肢逆向运动学
+          this.updateGait();
+
+          // 4. 更新跟随药丸
+          for (let pill of this.userTetheredPills) {
+            pill.update(this.x, this.y);
+          }
+
+          // ==========================================
+          // 5. 暴走追捕：扑抓飞虫逻辑！
+          // ==========================================
+          if (this.isHuntingFly && distToDest < 26 * this.scale && activeFly.lifeTime > 75) {
+            // 扑住苍蝇！
+            activeFly.isCaught = true;
+            this.isHuntingFly = false;
+            this.isCarryingFly = true;
+            playSound('predator_alert', this.scale * 0.8);
+            logSnifferEvent('PREDATOR', '🪰 暴走猎获飞虫 INSECT_#01', '运往左侧蛛网');
+
+            // 抓到后：坚决带回左侧蜘蛛网！
+            this.destX = webLair.hubX;
+            this.destY = webLair.hubY;
+            document.getElementById('hud-status-badge').innerText = '🕸️ 猎获昆虫！运往网里...';
+          }
+
+          // ==========================================
+          // 6. 将飞虫挂在蜘蛛网上！
+          // ==========================================
+          if (this.isCarryingFly && Math.hypot(this.x - webLair.hubX, this.y - webLair.hubY) < 35 * this.scale) {
+            activeFly.active = false;
+            activeFly.isCaught = false;
+            this.isCarryingFly = false;
+            this.isHuntingFly = false; // 彻底重置捕猎标志！
+            this.eyesRed = false; // 眼睛恢复正常颜色！
+
+            // 挂在网里做成昆虫标本食物茧
+            webLair.stashPrey({
+              text: '🪰 INSECT_#01 ↗',
+              bgCol: '#ff1e42',
+              textCol: '#ffffff'
+            });
+            playSound('stash_web', this.scale);
+            logSnifferEvent('STASH', '🪰 昆虫标本成功挂网收藏', 'WEB LAIR +1');
+
+            document.getElementById('hud-status-badge').innerText = this.cfg.name.split('/')[0].trim();
+            // 修复卡死在中间的问题：清空旧目标，设置短暂寻路冷却，自主漫游立即寻觅下一个文字目标！
+            this.currentTarget = null;
+            this.isScanning = false;
+            this.scanProgress = 0;
+            this.autoHarvestCooldown = 20;
+            return;
+          }
+
+          // 7. 抵达蜘蛛网卸载 3 份资料食物
+          if (this.isStashingFood && distToDest < 35 * this.scale) {
+            while (this.userTetheredPills.length > 0) {
+              const p = this.userTetheredPills.pop();
+              webLair.stashPrey(p);
+            }
+            playSound('stash_web', this.scale);
+            logSnifferEvent('STASH', '🕸️ 卸载 3 份数据茧至左侧蛛网', 'SARANG FOOD +3');
+
+            this.isStashingFood = false;
+            document.getElementById('hud-status-badge').innerText = this.cfg.name.split('/')[0].trim();
+            // 卸载完成：清空旧目标，立即继续漫游抓取更多资料！
+            this.currentTarget = null;
+            this.isScanning = false;
+            this.scanProgress = 0;
+            this.autoHarvestCooldown = 20;
+            return;
+          }
+
+          // 8. 正常抓取逻辑 (抵达目标附近后停下并开始激光扫描，直到 100% 抓取完毕)
+          if (this.currentTarget) {
+            const distToTarget = Math.hypot(this.x - this.currentTarget.x, this.y - this.currentTarget.y);
+            if (distToTarget < 60 * this.scale) {
+              // 若身上仍咬着猎物，立即自动挂入蛛网食物库
+              if (this.isCarryingFly) {
+                this.isCarryingFly = false;
+                this.eyesRed = false;
+                activeFly.active = false;
+                activeFly.isCaught = false;
+                webLair.stashPrey({ text: '🪰 INSECT_#01 ↗', bgCol: '#ff1e42', textCol: '#ffffff' });
+                logSnifferEvent('STASH', '🪰 抓取文献时飞虫自动收归蛛网', 'AUTO STASHED');
+              }
+
+              // 停住身体，专心扫描当前文字
+              this.destX = this.x;
+              this.destY = this.y;
+              this.isScanning = true;
+              this.scanProgress += 0.035 * this.speedMultiplier;
+
+              // 【核心效果】：抓取进行中，给文字目标添加高频震颤扭动特效 (Resonance Buzz)
+              if (this.currentTarget.el) {
+                this.currentTarget.el.classList.add('is-being-scanned');
+              }
+
+              if (this.scanProgress >= 1.0) {
+                const text = this.currentTarget.text || 'ID: 83825904 ↗';
+                const el = this.currentTarget.el;
+
+                // 随机选取 8 种令人惊艳的多彩变异样式之一 (文字扭动、量子模糊不见、全息彩虹、生化脉冲等)
+                const presetNum = Math.floor(Math.random() * 8) + 1;
+                const presetClass = `scanned-preset-${presetNum}`;
+                let burstCol = '#ff007f';
+
+                if (presetNum === 1) burstCol = '#ff007f'; // 扭动色散
+                else if (presetNum === 2) burstCol = '#00f0ff'; // 量子幽灵模糊不见
+                else if (presetNum === 3) burstCol = '#39ff14'; // 全息彩虹流光
+                else if (presetNum === 4) burstCol = '#39ff14'; // 剧毒生化脉冲
+                else if (presetNum === 5) burstCol = '#ffaa00'; // 太阳耀斑黄金
+                else if (presetNum === 6) burstCol = '#b522ff'; // 高能紫晶切片
+                else if (presetNum === 7) burstCol = '#00f0ff'; // 全息中空激光
+                else if (presetNum === 8) burstCol = '#ff1e42'; // 红外解构消散
+
+                if (el) {
+                  // 备份原本的原始 class
+                  if (!el.dataset.origClass) {
+                    el.dataset.origClass = el.className.replace(/scanned-preset-\d/g, '').replace(/is-being-scanned/g, '').replace(/captured-burst-wobble/g, '').trim();
+                  }
+                  el.dataset.lastHarvested = Date.now();
+
+                  // 触发抓取完成瞬间的弹性爆震扭动与多彩变异特效
+                  el.classList.remove('is-being-scanned');
+                  el.classList.add('captured-burst-wobble');
+                  el.className = el.className.replace(/scanned-preset-\d/g, '').trim();
+                  el.classList.add(presetClass);
+
+                  // 【核心要求落实】：抓取特效仅在捕获瞬间精彩呈现约 1.5 秒，随后完全平滑恢复原本文字效果！
+                  // 绝不持续播放 CSS 动画，彻底杜绝文字堆叠拉慢全屏帧率与运行速度！
+                  setTimeout(() => {
+                    if (el) {
+                      el.classList.remove('captured-burst-wobble');
+                      el.classList.remove(presetClass);
+                      if (el.dataset.origClass) {
+                        el.className = el.dataset.origClass;
+                      }
+                    }
+                  }, 1500);
+                }
+
+                // 【核心效果】：目标中心 360° 绽放数码小烟火火花与冲击光圈！
+                triggerFirework(this.currentTarget.x, this.currentTarget.y, burstCol);
+                playSound('firework', this.scale);
+
+                const presetNames = {
+                  1: '扭动色散',
+                  2: '量子模糊消散',
+                  3: '全息彩虹流光',
+                  4: '剧毒脉冲',
+                  5: '太阳耀斑',
+                  6: '紫晶倾斜切片',
+                  7: '全息中空激光',
+                  8: '红外解构消散'
+                };
+
+                this.bodyBadge = text.slice(0, 14);
+                const bg = burstCol;
+                const fg = (presetNum === 2 || presetNum === 7) ? '#00f0ff' : '#ffffff';
+
+                // 无论是用户点击派遣还是自主漫游，都抓取生成文字数据药丸跟随在身后，累计达到3个后自动回巢储食！
+                this.userTetheredPills.push(new UserTetheredPill(text, bg, fg, this.x, this.y, this.scale));
+
+                if (this.targetOrigin === 'user') {
+                  playSound('user_harvest', this.scale);
+                  logSnifferEvent('EXTRACT', `用户捕获 [${presetNames[presetNum]}]: "${text.slice(0, 14)}" (当前携带 ${this.userTetheredPills.length}/3 件)`, 'STATUS 200 OK');
+                  this.isExecutingPriorityTask = false;
+                } else {
+                  playSound('auto_absorb', this.scale);
+                  logSnifferEvent('MUTATE', `漫游吸收 [${presetNames[presetNum]}]: "${text.slice(0, 14)}" (当前携带 ${this.userTetheredPills.length}/3 件)`, `PRESET_${presetNum}`);
+                }
+
+                // 【核心要求】：彻底完成抓取！才解除当前目标，并设置短暂的观察停顿（约 0.6 秒），才去寻觅下一个
+                this.isScanning = false;
+                this.scanProgress = 0;
+                this.currentTarget = null;
+                this.autoHarvestCooldown = Math.round(35 / this.speedMultiplier);
+              } else if (Math.random() < 0.2) {
+                playSound('scan', this.scale);
+              }
+            } else {
+              if (this.currentTarget && this.currentTarget.el) {
+                this.currentTarget.el.classList.remove('is-being-scanned');
+              }
+              this.isScanning = false;
+              this.scanProgress = 0;
+            }
+          } else {
+            this.isScanning = false;
+            this.scanProgress = 0;
+          }
+        }
+
+        decideTarget(targets) {
+          // 绝对最高优先级：用户点击派发的目标任务，绝不被任何其他状态阻断！
+          if (this.isExecutingPriorityTask) {
+            return;
+          }
+
+          // 优先抓飞虫或运飞虫
+          if (this.isHuntingFly || this.isCarryingFly) {
+            return;
+          }
+
+          // 正在回巢储食：锁定蛛网中心
+          if (this.isStashingFood) {
+            this.destX = webLair.hubX;
+            this.destY = webLair.hubY;
+            return;
+          }
+
+          // 用户在漫游时点击了空位：蜘蛛跑去探查该处，探查完毕后自动继续漫游
+          if (this.isInspectingEmptySpot) {
+            const d = Math.hypot(this.x - this.destX, this.y - this.destY);
+            if (d <= 18 * this.scale) {
+              this.inspectTimer--;
+              if (this.inspectTimer <= 0) {
+                this.isInspectingEmptySpot = false;
+                this.autoHarvestCooldown = Math.round(18 / this.speedMultiplier);
+              }
+            }
+            return;
+          }
+
+          if (currentMode === 'target') {
+            // target 模式等待新点击
+          } else if (currentMode === 'follow' && mouseInWindow) {
+            this.destX = mousePos.x;
+            this.destY = mousePos.y + window.scrollY;
+          } else if (currentMode === 'flee' && mouseInWindow) {
+            const mWorldY = mousePos.y + window.scrollY;
+            const dist = Math.hypot(this.x - mousePos.x, this.y - mWorldY);
+            if (dist < 220 * this.scale) {
+              const awayAngle = Math.atan2(this.y - mWorldY, this.x - mousePos.x);
+              this.destX = this.x + Math.cos(awayAngle) * 190 * this.scale;
+              this.destY = this.y + Math.sin(awayAngle) * 190 * this.scale;
+            }
+          } else {
+            // ==========================================
+            // 自主漫游模式 (Auto Roam):
+            // 【核心要求实现】：必须等它完整抓取完当前的文字资料后，才去挑选下一个！
+            // ==========================================
+            if (this.currentTarget) {
+              // 依然有正在抓取的目标：保持走向并抓取当前目标，绝不中途切换！
+              return;
+            }
+
+            // 当前没有目标，且抓取完成后的冷却时间已过：挑选下一个文字目标
+            if (this.autoHarvestCooldown > 0) {
+              this.autoHarvestCooldown--;
+              return;
+            }
+
+            if (targets && targets.length > 0) {
+              const now = Date.now();
+              // 优先挑选未被抓取或距上次抓取已超过 30 秒的目标，保证漫游遍历全篇
+              const unscanned = targets.filter(t => t.el && (!t.el.dataset.lastHarvested || (now - parseInt(t.el.dataset.lastHarvested) > 30000)));
+              const pool = unscanned.length > 0 ? unscanned : targets;
+              const nextTarget = pool[Math.floor(Math.random() * pool.length)];
+
+              this.currentTarget = nextTarget;
+              this.targetOrigin = 'auto';
+              this.destX = nextTarget.x;
+              this.destY = nextTarget.y;
+              this.scanProgress = 0;
+              this.isScanning = false;
+            }
+          }
+        }
+
+        updateGait() {
+          const stepPeriod = Math.max(3, Math.round(6 / (this.isHuntingFly ? this.speedMultiplier * 1.6 : this.speedMultiplier)));
+          if (this.stateTimer % stepPeriod === 0) {
+            this.gaitGroup = 1 - this.gaitGroup;
+          }
+
+          const cos = Math.cos(this.angle + this.headTwitchAngle * 0.5);
+          const sin = Math.sin(this.angle + this.headTwitchAngle * 0.5);
+
+          for (let leg of this.legs) {
+            const hipX = this.x + (cos * leg.hipForward - sin * leg.hipLateral);
+            const hipY = this.y + (sin * leg.hipForward + cos * leg.hipLateral);
+            leg.hipX = hipX;
+            leg.hipY = hipY;
+
+            const lead = 18 * this.scale * this.speedMultiplier;
+            const idealFootX = hipX + Math.cos(this.angle + leg.restAngleOffset) * leg.restDist + cos * lead;
+            const idealFootY = hipY + Math.sin(this.angle + leg.restAngleOffset) * leg.restDist + sin * lead;
+
+            const pullDist = Math.hypot(leg.footX - idealFootX, leg.footY - idealFootY);
+
+            if (!leg.isStepping && pullDist > this.strideThreshold && leg.gaitGroup === this.gaitGroup) {
+              leg.isStepping = true;
+              leg.stepProgress = 0;
+              leg.prevFootX = leg.footX;
+              leg.prevFootY = leg.footY;
+              leg.stepTargetX = idealFootX + (Math.random() - 0.5) * 6 * this.scale;
+              leg.stepTargetY = idealFootY + (Math.random() - 0.5) * 6 * this.scale;
+              playSound('step', this.scale);
+            }
+
+            if (leg.isStepping) {
+              leg.stepProgress += 0.18 * (this.isHuntingFly ? this.speedMultiplier * 1.5 : this.speedMultiplier);
+              if (leg.stepProgress >= 1.0) {
+                leg.isStepping = false;
+                leg.stepProgress = 1.0;
+                leg.footX = leg.stepTargetX;
+                leg.footY = leg.stepTargetY;
+              } else {
+                const t = leg.stepProgress;
+                leg.footX = leg.prevFootX + (leg.stepTargetX - leg.prevFootX) * t;
+                leg.footY = leg.prevFootY + (leg.stepTargetY - leg.prevFootY) * t;
+                leg.liftZ = Math.sin(t * Math.PI) * 16 * this.scale;
+              }
+            } else {
+              leg.liftZ = 0;
+            }
+
+            const bend = leg.isRightSide ? true : false;
+            const ik = solve2SegmentIK(leg.hipX, leg.hipY, leg.footX, leg.footY - (leg.liftZ || 0), leg.l1, leg.l2, bend);
+            leg.kneeX = ik.x1;
+            leg.kneeY = ik.y1;
+          }
+        }
+
+        // ==========================================
+        // 【真实蜘蛛倒挂悬空肢足摆动解算】
+        // 倒吊时：后足向上搭线控丝，前足向下自然悬空垂探地面！
+        // ==========================================
+        updateDanglingLegs() {
+          const sc = this.scale;
+          const time = this.stateTimer * 0.08;
+          const cos = Math.cos(this.angle);
+          const sin = Math.sin(this.angle);
+
+          for (let leg of this.legs) {
+            const isRight = leg.isRightSide;
+            const idx = leg.legIndex;
+
+            const hipX = this.x + (cos * leg.hipForward - sin * leg.hipLateral);
+            const hipY = this.y + (sin * leg.hipForward + cos * leg.hipLateral);
+            leg.hipX = hipX;
+            leg.hipY = hipY;
+
+            let targetFootRelX = 0;
+            let targetFootRelY = 0;
+
+            if (idx === 3) {
+              // 后足 (Leg 3 & Leg 7)：倒挂时优雅向后上方蜷曲贴近白丝，如同真实蜘蛛后足搭线控丝！
+              const sideOffset = (isRight ? 1 : -1) * (14 + Math.sin(time + idx) * 3) * sc;
+              targetFootRelX = sideOffset;
+              targetFootRelY = (-28 - Math.cos(time * 0.8) * 4) * sc;
+            } else if (idx === 0) {
+              // 最前足 (Leg 0 & Leg 4)：悬空向前下方垂探，微微晃动探查地面！
+              const sideOffset = (isRight ? 1 : -1) * (20 + Math.sin(time * 1.2 + idx) * 5) * sc;
+              targetFootRelX = sideOffset;
+              targetFootRelY = (36 + Math.cos(time * 1.1) * 6) * sc;
+            } else if (idx === 1) {
+              // 次前足：半张开虚浮
+              const sideOffset = (isRight ? 1 : -1) * (28 + Math.sin(time + idx) * 4) * sc;
+              targetFootRelX = sideOffset;
+              targetFootRelY = (22 + Math.cos(time) * 4) * sc;
+            } else {
+              // 中后足：略微收拢在身侧
+              const sideOffset = (isRight ? 1 : -1) * (25 + Math.cos(time + idx) * 4) * sc;
+              targetFootRelX = sideOffset;
+              targetFootRelY = (-4 + Math.sin(time * 0.9) * 4) * sc;
+            }
+
+            const idealX = hipX + (cos * targetFootRelY - sin * targetFootRelX);
+            const idealY = hipY + (sin * targetFootRelY + cos * targetFootRelX);
+
+            leg.footX += (idealX - leg.footX) * 0.22;
+            leg.footY += (idealY - leg.footY) * 0.22;
+
+            const bend = isRight;
+            const ik = solve2SegmentIK(leg.hipX, leg.hipY, leg.footX, leg.footY, leg.l1, leg.l2, bend);
+            leg.kneeX = ik.x1;
+            leg.kneeY = ik.y1;
+          }
+        }
+
+        draw(ctx, scrollY, targets) {
+          if (this.trickOpacity <= 0.01) return; // 隐匿状态完全不可见！
+
+          let screenX = this.x;
+          let screenY = this.y - scrollY + (this.idleBob || 0); // 融入活体呼吸微动！
+          const sc = this.scale;
+          const renderAngle = this.angle + (this.headTwitchAngle || 0); // 融入晃头探照角度！
+
+          ctx.save();
+          if (this.trickOpacity < 1.0) {
+            ctx.globalAlpha = this.trickOpacity;
+          }
+
+          // 突脸吓人震颤偏移与飞扑倍率
+          if (this.jumpGlitch > 0) {
+            screenX += (Math.random() - 0.5) * this.jumpGlitch;
+            screenY += (Math.random() - 0.5) * this.jumpGlitch;
+          }
+          const jScale = this.jumpScale || 1.0;
+          if (jScale !== 1.0) {
+            ctx.translate(screenX, screenY);
+            ctx.scale(jScale, jScale);
+            ctx.translate(-screenX, -screenY);
+          }
+
+          // ==========================================
+          // 【真实蜘蛛吐长白丝倒挂特效】(Realistic White Silk Thread Rappel)
+          // (用户指令：要真实蜘蛛那种吊卦 - 稍微白色长线下来效果)
+          // ==========================================
+          if (this.trickState === 'rappel' && this.silkAnchorY) {
+            ctx.save();
+            const anchorScreenY = -40; // 始终从浏览器视口最顶端上方垂落
+            // 蜘蛛尾部 (Spinneret) 坐标：
+            // 当 angle 为 Math.PI/2 (朝下) 时，尾部在躯体上方 (-15 * sc)
+            const tailX = screenX - Math.cos(this.angle) * (15 * sc);
+            const tailY = screenY - Math.sin(this.angle) * (15 * sc);
+
+            // 1. 外层柔和白丝半透光晕
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+            ctx.shadowBlur = 4;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(screenX, anchorScreenY);
+            const sway = Math.sin(this.trickTimer * 0.12) * 8 * (1 - (this.trickTimer / 195));
+            const ctrlY = (anchorScreenY + tailY) * 0.52;
+            ctx.quadraticCurveTo(screenX + sway, ctrlY, tailX, tailY);
+            ctx.stroke();
+
+            // 2. 内层精细纯白长丝芯线 (纤细真丝质感)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 1.1;
+            ctx.beginPath();
+            ctx.moveTo(screenX, anchorScreenY);
+            ctx.quadraticCurveTo(screenX + sway, ctrlY, tailX, tailY);
+            ctx.stroke();
+
+            // 3. 丝线与尾部出丝口连接处的微小白光节点
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.arc(tailX, tailY, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. 丝线上缓缓滑落的晶莹微光微粒 (Glistering Silk Shimmer)
+            const shimmerP = (this.trickTimer * 0.035) % 1.0;
+            const shimX = screenX + (tailX - screenX) * shimmerP + sway * Math.sin(shimmerP * Math.PI);
+            const shimY = anchorScreenY + (tailY - anchorScreenY) * shimmerP;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.arc(shimX, shimY, 1.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+          }
+
+
+
+          // 2. 绘制与周边文献的蛛网激光丝线
+          if (targets && targets.length > 0) {
+            ctx.save();
+            let count = 0;
+            const maxConnectDist = 360 * sc;
+            for (let t of targets) {
+              const targetScreenY = t.y - scrollY;
+              const dist = Math.hypot(this.x - t.x, this.y - t.y);
+              if (dist < maxConnectDist && targetScreenY > -40 && targetScreenY < height + 40) {
+                count++;
+                if (count > 5) break;
+
+                const alpha = Math.max(0.08, (1 - dist / maxConnectDist) * 0.45);
+                ctx.strokeStyle = count % 2 === 0 ? `rgba(0, 240, 255, ${alpha})` : `rgba(255, 0, 127, ${alpha})`;
+                ctx.lineWidth = 1 * sc;
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY);
+                ctx.lineTo(t.x, targetScreenY);
+                ctx.stroke();
+              }
+            }
+            ctx.restore();
+          }
+
+          // 3. 绘制正在交互的目标的高亮框与聚焦激光 (含扫描能量束与进度 HUD)
+          if (this.currentTarget && this.currentTarget.el) {
+            const r = this.currentTarget.el.getBoundingClientRect();
+            ctx.save();
+            const focusCol = this.targetOrigin === 'user' ? '#ff007f' : this.cfg.bodyBorder;
+            ctx.strokeStyle = focusCol;
+            ctx.shadowColor = focusCol;
+            ctx.shadowBlur = (this.isScanning ? 20 : 12) * sc;
+            ctx.lineWidth = (this.isScanning ? 2.5 : 1.8) * sc;
+
+            const pad = 4 * sc;
+            const bx = r.left - pad;
+            const by = r.top - pad;
+            const bw = r.width + pad * 2;
+            const bh = r.height + pad * 2;
+
+            if (this.isScanning) {
+              // 扫描态：绘制四角高科技锁定准星括号 (Reticle Brackets)
+              const cornerLen = Math.min(10 * sc, bw * 0.25);
+              ctx.beginPath();
+              // 左上
+              ctx.moveTo(bx, by + cornerLen); ctx.lineTo(bx, by); ctx.lineTo(bx + cornerLen, by);
+              // 右上
+              ctx.moveTo(bx + bw - cornerLen, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + cornerLen);
+              // 右下
+              ctx.moveTo(bx + bw, by + bh - cornerLen); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw - cornerLen, by + bh);
+              // 左下
+              ctx.moveTo(bx + cornerLen, by + bh); ctx.lineTo(bx, by + bh); ctx.lineTo(bx, by + bh - cornerLen);
+              ctx.stroke();
+
+              // 内部脉冲半透明高亮底色
+              ctx.fillStyle = this.targetOrigin === 'user' ? 'rgba(255, 0, 127, 0.12)' : 'rgba(0, 240, 255, 0.12)';
+              ctx.fillRect(bx, by, bw, bh);
+
+              // 激光束：带有微弱电弧抖动的双重高能激光
+              const targetCenterX = r.left + r.width / 2;
+              const targetCenterY = r.top + r.height / 2;
+              const jitterX = (Math.random() - 0.5) * 4 * sc;
+              const jitterY = (Math.random() - 0.5) * 4 * sc;
+
+              ctx.lineWidth = 1.2 * sc;
+              ctx.beginPath();
+              ctx.moveTo(screenX, screenY);
+              ctx.lineTo(targetCenterX + jitterX, targetCenterY + jitterY);
+              ctx.stroke();
+
+              // 头部微型抓取进度指示条 (HUD Progress)
+              const pW = Math.max(34, bw);
+              const pH = 3 * sc;
+              const px = r.left + r.width / 2 - pW / 2;
+              const py = by - 8 * sc;
+
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+              ctx.fillRect(px, py, pW, pH);
+              ctx.fillStyle = focusCol;
+              ctx.fillRect(px, py, pW * Math.min(1.0, this.scanProgress), pH);
+            } else {
+              // 移动接近态：普通矩形框与直线引导
+              ctx.strokeRect(bx, by, bw, bh);
+              ctx.beginPath();
+              ctx.moveTo(screenX, screenY);
+              ctx.lineTo(r.left + r.width / 2, r.top + r.height / 2);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+
+          // 4. 绘制【仅由用户点击抓取的实体数据药丸】
+          for (let pill of this.userTetheredPills) {
+            pill.draw(ctx, scrollY, this.x, this.y);
+          }
+
+          // 5. 肢足阴影
+          ctx.save();
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+          ctx.lineWidth = 3.5 * sc;
+          ctx.lineCap = 'round';
+          for (let leg of this.legs) {
+            ctx.beginPath();
+            ctx.moveTo(leg.hipX, leg.hipY - scrollY + 4 * sc);
+            ctx.lineTo(leg.kneeX, leg.kneeY - scrollY + 4 * sc);
+            ctx.lineTo(leg.footX, leg.footY - scrollY + 4 * sc);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // 6. 还原截图中的【蛛足之间的网状连线 (Web Mesh)】
+          if (this.cfg.hasWebMesh) {
+            ctx.save();
+            ctx.strokeStyle = this.cfg.meshColor;
+            ctx.lineWidth = 1 * sc;
+            for (let i = 0; i < 3; i++) {
+              const lA = this.legs[i];
+              const lB = this.legs[i + 1];
+              ctx.beginPath();
+              ctx.moveTo(lA.kneeX, lA.kneeY - scrollY);
+              ctx.lineTo(lB.kneeX, lB.kneeY - scrollY);
+              ctx.stroke();
+
+              const lC = this.legs[i + 4];
+              const lD = this.legs[i + 5];
+              ctx.beginPath();
+              ctx.moveTo(lC.kneeX, lC.kneeY - scrollY);
+              ctx.lineTo(lD.kneeX, lD.kneeY - scrollY);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+
+          // 7. 绘制 8 条机械蜘蛛足
+          ctx.save();
+          for (let leg of this.legs) {
+            const hx = leg.hipX;
+            const hy = leg.hipY - scrollY;
+            const kx = leg.kneeX;
+            const ky = leg.kneeY - scrollY - (leg.liftZ || 0);
+            const fx = leg.footX;
+            const fy = leg.footY - scrollY - (leg.liftZ || 0);
+
+            // 第一段：髋 -> 膝
+            ctx.strokeStyle = '#202a3a';
+            ctx.lineWidth = 2.6 * sc;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(hx, hy);
+            ctx.lineTo(kx, ky);
+            ctx.stroke();
+
+            // 第二段：膝 -> 脚尖
+            const legColor = this.eyesRed ? '#ff1e42' : this.cfg.legColor;
+            ctx.strokeStyle = legColor;
+            ctx.shadowColor = legColor;
+            ctx.shadowBlur = 8 * sc;
+            ctx.lineWidth = 1.8 * sc;
+            ctx.beginPath();
+            ctx.moveTo(kx, ky);
+            ctx.lineTo(fx, fy);
+            ctx.stroke();
+
+            // 膝关节发光节点
+            const jointColor = this.eyesRed ? '#ffaa00' : this.cfg.jointColor;
+            ctx.fillStyle = jointColor;
+            ctx.shadowColor = jointColor;
+            ctx.shadowBlur = 10 * sc;
+            ctx.beginPath();
+            ctx.arc(kx, ky, 3 * sc, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 脚尖锐点
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(fx, fy, 2 * sc, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // 8. 绘制蜘蛛赛博躯体 (融入活体晃头角度)
+          ctx.save();
+          ctx.translate(screenX, screenY);
+          ctx.rotate(renderAngle);
+
+          // 若具有凶暴螯齿或正处于追捕状态 (张开螯肢)
+          if (this.cfg.hasFangs || this.eyesRed) {
+            const fangPinch = Math.sin(this.stateTimer * 0.35) * 5 * sc;
+            ctx.strokeStyle = '#ff1e42';
+            ctx.shadowColor = '#ff1e42';
+            ctx.shadowBlur = 10 * sc;
+            ctx.lineWidth = 2.6 * sc;
+            ctx.beginPath();
+            ctx.moveTo(14 * sc, -6 * sc);
+            ctx.lineTo(26 * sc, -10 * sc + fangPinch);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(14 * sc, 6 * sc);
+            ctx.lineTo(26 * sc, 10 * sc - fangPinch);
+            ctx.stroke();
+          }
+
+          // 核心胶囊
+          ctx.fillStyle = this.cfg.bodyBg;
+          ctx.strokeStyle = this.eyesRed ? '#ff1e42' : this.cfg.bodyBorder;
+          ctx.shadowColor = this.eyesRed ? '#ff1e42' : this.cfg.bodyBorder;
+          ctx.shadowBlur = 12 * sc;
+          ctx.lineWidth = 2 * sc;
+          ctx.beginPath();
+          ctx.roundRect(-16 * sc, -11 * sc, 32 * sc, 22 * sc, 5 * sc);
+          ctx.fill();
+          ctx.stroke();
+
+          // 明黄感应核心小圆点 (狂暴时闪烁红光)
+          ctx.fillStyle = this.eyesRed ? '#ff1e42' : this.cfg.coreDot;
+          ctx.shadowColor = this.eyesRed ? '#ff1e42' : this.cfg.coreDot;
+          ctx.shadowBlur = 10 * sc;
+          ctx.beginPath();
+          ctx.arc(4 * sc, 0, 3 * sc, 0, Math.PI * 2);
+          ctx.fill();
+
+          // ==========================================
+          // 【长腿/蜘蛛眼睛强光照射效果】(Eye Headlight Illumination Cones & Beam Projection)
+          // 包含：双重复眼前向投射高能光锥、地面/页面文字照射高亮光斑、轴心强光束与微动光波
+          // ==========================================
+          if (this.cfg.hasEyeLight || this.cfg.hasEyeCone || this.species === 'weaver') {
+            ctx.save();
+            // 不使用过曝的 screen 混色，采用标准平滑淡彩透明渐变，保持原汁原味的通透感与蜘蛛原生色调
+            const beamLen = (this.cfg.eyeBeamLength || 195) * sc;
+            const spread = (this.cfg.eyeBeamSpread || 0.28);
+            const flicker = 0.96 + Math.sin(this.stateTimer * 0.1) * 0.04;
+
+            // 配合整体蜘蛛色调的淡雅透明色 (极低不透明度，通透不遮挡文字)
+            const beamMainCol = this.eyesRed 
+              ? 'rgba(255, 30, 66, 0.09)' 
+              : (this.cfg.eyeBeamColor || 'rgba(0, 220, 255, 0.075)');
+            const beamCoreCol = this.eyesRed 
+              ? 'rgba(255, 180, 195, 0.22)' 
+              : (this.cfg.eyeBeamCoreColor || 'rgba(220, 250, 255, 0.2)');
+            const groundSpotCol = this.eyesRed 
+              ? 'rgba(255, 30, 66, 0.05)' 
+              : 'rgba(0, 220, 255, 0.045)';
+
+            const eyeYs = [-4.5 * sc, 4.5 * sc];
+
+            // 1. 左右复眼分别向前射出柔和通透的探照光锥
+            for (let ey of eyeYs) {
+              const ex = 14 * sc;
+
+              const coneGrad = ctx.createRadialGradient(
+                ex, ey, 2 * sc,
+                ex + beamLen * 0.65, ey, beamLen
+              );
+              coneGrad.addColorStop(0, beamCoreCol);
+              coneGrad.addColorStop(0.2, beamMainCol);
+              coneGrad.addColorStop(0.65, this.eyesRed ? 'rgba(255, 30, 66, 0.025)' : 'rgba(0, 220, 255, 0.02)');
+              coneGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+              ctx.fillStyle = coneGrad;
+              ctx.beginPath();
+              ctx.moveTo(ex, ey);
+              ctx.arc(ex, ey, beamLen, -spread, spread);
+              ctx.closePath();
+              ctx.fill();
+
+              // 微细柔光轴线
+              const rayGrad = ctx.createLinearGradient(ex, ey, ex + beamLen * 0.85, ey);
+              rayGrad.addColorStop(0, beamCoreCol);
+              rayGrad.addColorStop(0.4, beamMainCol);
+              rayGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+              ctx.strokeStyle = rayGrad;
+              ctx.lineWidth = 0.9 * sc;
+              ctx.beginPath();
+              ctx.moveTo(ex, ey);
+              ctx.lineTo(ex + beamLen * 0.85, ey);
+              ctx.stroke();
+            }
+
+            // 2. 投射在前方地面/网页文字上的极微弱柔和光晕 (轻盈淡透，不晃眼)
+            const spotX = beamLen * 0.68;
+            const spotRadiusX = beamLen * 0.38 * flicker;
+            const spotRadiusY = beamLen * 0.22 * flicker;
+
+            const spotGrad = ctx.createRadialGradient(
+              spotX, 0, 3 * sc,
+              spotX, 0, spotRadiusX
+            );
+            spotGrad.addColorStop(0, groundSpotCol);
+            spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = spotGrad;
+            ctx.beginPath();
+            ctx.ellipse(spotX, 0, spotRadiusX, spotRadiusY, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+          }
+
+          // ==========================================
+          // 前部复眼传感器与白炽晶状体 (Front Optical Sensors with Specular Glint)
+          // ==========================================
+          const eyeColor = this.eyesRed ? '#ff003c' : '#00f0ff';
+          ctx.fillStyle = eyeColor;
+          ctx.shadowColor = eyeColor;
+          ctx.shadowBlur = (this.eyesRed ? 22 : 14) * sc;
+
+          // 主复眼外环
+          ctx.beginPath();
+          ctx.arc(14 * sc, -4.5 * sc, 3.4 * sc, 0, Math.PI * 2);
+          ctx.arc(14 * sc, 4.5 * sc, 3.4 * sc, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 核心白炽强光点 (高能光源焦点)
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#ffffff';
+          ctx.shadowBlur = 8 * sc;
+          ctx.beginPath();
+          ctx.arc(14.6 * sc, -4.5 * sc, 1.4 * sc, 0, Math.PI * 2);
+          ctx.arc(14.6 * sc, 4.5 * sc, 1.4 * sc, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 若属于大眼探秘品种，额外渲染侧翼副眼传感器
+          if (this.species === 'watcher') {
+            ctx.fillStyle = this.eyesRed ? '#ffaa00' : '#ffaa00';
+            ctx.shadowColor = '#ffaa00';
+            ctx.shadowBlur = 8 * sc;
+            ctx.beginPath();
+            ctx.arc(6 * sc, -9 * sc, 2.5 * sc, 0, Math.PI * 2);
+            ctx.arc(6 * sc, 9 * sc, 2.5 * sc, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.restore();
+
+          // 9. 背部微型状态标签
+          ctx.save();
+          const badgeFontSize = Math.round(9.5 * Math.min(1.4, sc));
+          ctx.font = `bold ${badgeFontSize}px "JetBrains Mono", monospace`;
+          let badgeText = this.bodyBadge;
+          if (this.isHuntingFly) badgeText = '🚨 HUNTING INSECT!';
+          else if (this.isCarryingFly) badgeText = '🪰 CARRYING PREY...';
+          else if (this.isStashingFood) badgeText = '🕸️ STASHING PREY...';
+
+          const badgeW = ctx.measureText(badgeText).width + 10 * sc;
+          const badgeH = 15 * sc;
+          const bx = screenX - badgeW / 2;
+          const by = screenY - 30 * sc;
+
+          ctx.fillStyle = 'rgba(8, 12, 18, 0.92)';
+          const bColor = this.eyesRed ? '#ff1e42' : (this.isStashingFood ? '#ff007f' : this.cfg.bodyBorder);
+          ctx.strokeStyle = bColor;
+          ctx.shadowColor = bColor;
+          ctx.shadowBlur = 6 * sc;
+          ctx.lineWidth = 1 * sc;
+          ctx.beginPath();
+          ctx.roundRect(bx, by, badgeW, badgeH, 3 * sc);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = this.eyesRed ? '#ff99a8' : '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(badgeText, screenX, by + badgeH / 2);
+          ctx.restore();
+          ctx.restore(); // 恢复外层特技全局透明度与放大矩阵
+        }
+      }
+
+      // 11. 实例化蜘蛛 (默认：大眼探秘 watcher，中体型 1.55x，自主漫游)
+      const targets = getTargetElements();
+      const crawler = new CyberSpider(width * 0.45, window.scrollY + 280, 'watcher', 1.55);
+
+      // ==========================================
+      // 【核心功能】：30 秒自动定时飞入一只小飞虫 / 苍蝇！
+      // ==========================================
+      let bugSpawnTimer = 0;
+      const BUG_INTERVAL_TICKS = 30 * 60; // 30秒 @ 60fps = 1800 ticks
+
+      function checkBugSpawn() {
+        if (!activeFly.active) {
+          bugSpawnTimer++;
+          if (bugSpawnTimer >= BUG_INTERVAL_TICKS) {
+            bugSpawnTimer = 0;
+            activeFly.spawn(crawler);
+          }
+        } else {
+          bugSpawnTimer = 0;
+        }
+      }
+
+      // 12. 速度滑块与预设按钮交互
+      const speedSlider = document.getElementById('speed-slider');
+      const currentSpeedLabel = document.getElementById('current-speed-label');
+      const speedMiniButtons = document.querySelectorAll('.speed-mini-btn');
+
+      function applySpeed(val) {
+        currentSpeedMultiplier = parseFloat(val);
+        speedSlider.value = currentSpeedMultiplier;
+        crawler.setSpeedMultiplier(currentSpeedMultiplier);
+
+        let desc = '正常';
+        if (currentSpeedMultiplier <= 0.8) desc = '慢速';
+        else if (currentSpeedMultiplier >= 2.0) desc = '极速';
+
+        currentSpeedLabel.innerText = `${currentSpeedMultiplier.toFixed(1)}x (${desc})`;
+
+        const teleRate = document.getElementById('tele-io-rate');
+        if (teleRate) teleRate.innerText = `${(currentSpeedMultiplier * 2).toFixed(1)} MB/s`;
+
+        speedMiniButtons.forEach(b => {
+          if (Math.abs(parseFloat(b.getAttribute('data-spd')) - currentSpeedMultiplier) < 0.15) {
+            b.classList.add('active');
+          } else {
+            b.classList.remove('active');
+          }
+        });
+      }
+
+      speedSlider.addEventListener('input', (e) => {
+        applySpeed(e.target.value);
+        resetAutoCollapseTimer();
+      });
+
+      speedMiniButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          applySpeed(btn.getAttribute('data-spd'));
+          resetAutoCollapseTimer();
+        });
+      });
+
+      // 手动投喂召唤飞虫按钮
+      document.getElementById('btn-spawn-bug').addEventListener('click', () => {
+        activeFly.spawn(crawler);
+        resetAutoCollapseTimer();
+      });
+
+      // 13. 鼠标事件与交互逻辑
+      window.addEventListener('mousemove', (e) => {
+        mousePos.x = e.clientX;
+        mousePos.y = e.clientY;
+        mouseInWindow = true;
+      });
+
+      window.addEventListener('mouseleave', () => {
+        mouseInWindow = false;
+      });
+
+      window.addEventListener('click', (e) => {
+        if (e.target.closest('#hud-wrapper') || e.target.closest('#web-lair-widget') || e.target.closest('#cyber-radar-widget') || e.target.closest('#cyber-music-widget')) return;
+
+        const worldX = e.clientX + window.scrollX;
+        const worldY = e.clientY + window.scrollY;
+
+        createClickCrosshair(e.clientX, e.clientY);
+
+        // 用户交互拥有最高霸权：若此时正叼着飞虫或储食，立即自动归网结算，绝不死锁！
+        if (crawler.isCarryingFly) {
+          crawler.isCarryingFly = false;
+          crawler.eyesRed = false;
+          activeFly.active = false;
+          activeFly.isCaught = false;
+          webLair.stashPrey({ text: '🪰 INSECT_#01 ↗', bgCol: '#ff1e42', textCol: '#ffffff' });
+          logSnifferEvent('STASH', '用户指令优先响应，飞虫自动收归网中', 'AUTO STASHED');
+        }
+        if (crawler.isHuntingFly) {
+          crawler.isHuntingFly = false;
+          crawler.eyesRed = false;
+        }
+        if (crawler.isStashingFood) {
+          crawler.isStashingFood = false;
+          while (crawler.userTetheredPills.length > 0) {
+            webLair.stashPrey(crawler.userTetheredPills.pop());
+          }
+        }
+
+        const clickedTargetEl = e.target.closest('.crawled-target');
+
+        if (clickedTargetEl) {
+          // 清除上一个可能存在的扫描中震颤态
+          if (crawler.currentTarget && crawler.currentTarget.el && crawler.currentTarget.el !== clickedTargetEl) {
+            crawler.currentTarget.el.classList.remove('is-being-scanned');
+          }
+
+          // 用户明确点击了文献中的某个文字或节点
+          const rect = clickedTargetEl.getBoundingClientRect();
+          const tPos = {
+            el: clickedTargetEl,
+            x: rect.left + rect.width / 2 + window.scrollX,
+            y: rect.top + rect.height / 2 + window.scrollY,
+            text: clickedTargetEl.innerText.trim()
+          };
+
+          crawler.destX = tPos.x;
+          crawler.destY = tPos.y;
+          crawler.currentTarget = tPos;
+          crawler.isExecutingPriorityTask = true;
+          crawler.targetOrigin = 'user';
+          crawler.isInspectingEmptySpot = false;
+          crawler.scanProgress = 0;
+          crawler.isScanning = false;
+          playSound('scan', crawler.scale);
+          logSnifferEvent('TARGET', `指令派遣: "${tPos.text.slice(0, 14)}"`, 'DISPATCHED');
+        } else {
+          if (crawler.currentTarget && crawler.currentTarget.el) {
+            crawler.currentTarget.el.classList.remove('is-being-scanned');
+          }
+          // 用户点击了空白处 (空位)
+          if (currentMode === 'auto') {
+            // 【漫游模式】：蜘蛛好奇跑向用户点击处，稍微观察探寻后，自动继续寻觅下一个文献资料漫游！
+            crawler.destX = worldX;
+            crawler.destY = worldY;
+            crawler.currentTarget = null;
+            crawler.isInspectingEmptySpot = true;
+            crawler.inspectTimer = Math.round(35 / crawler.speedMultiplier);
+            crawler.isExecutingPriorityTask = false;
+            playSound('step', crawler.scale * 1.2);
+            logSnifferEvent('PROBE', `探查空位 [${Math.round(worldX)}, ${Math.round(worldY)}]`, 'ROAM RESUMED');
+          } else {
+            // 【派遣模式】：前往该空白点并采集生成固定坐标的数据包
+            crawler.destX = worldX;
+            crawler.destY = worldY;
+            crawler.currentTarget = {
+              el: null,
+              x: worldX,
+              y: worldY,
+              text: `USER_PIN_${Math.floor(Math.random() * 8999 + 1000)} ↗`
+            };
+            crawler.isExecutingPriorityTask = true;
+            crawler.targetOrigin = 'user';
+            crawler.isInspectingEmptySpot = false;
+            playSound('scan', crawler.scale);
+            logSnifferEvent('PIN', `空位标靶采样 [${Math.round(worldX)}, ${Math.round(worldY)}]`, 'CAPTURING');
+          }
+        }
+      });
+
+      function createClickCrosshair(x, y) {
+        const ping = document.createElement('div');
+        ping.className = 'click-target-crosshair';
+        ping.style.left = x + 'px';
+        ping.style.top = y + 'px';
+
+        const ring = document.createElement('div');
+        ring.className = 'click-target-ring';
+        ping.appendChild(ring);
+
+        document.body.appendChild(ping);
+        setTimeout(() => ping.remove(), 900);
+      }
+
+      // 14. 体型尺寸切换 (小 / 中 / 大)
+      const sizeButtons = document.querySelectorAll('.size-btn');
+      const sizeLabel = document.getElementById('current-size-label');
+      const miniPillText = document.getElementById('mini-pill-text');
+
+      sizeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          sizeButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const sc = parseFloat(btn.getAttribute('data-scale'));
+          crawler.setScale(sc);
+
+          const sizeNames = { 1.0: '小 (1.0x)', 1.55: '中 (1.55x)', 2.3: '大 (2.3x)' };
+          const shortNames = { 1.0: '小', 1.55: '中', 2.3: '大' };
+          sizeLabel.innerText = sizeNames[sc];
+          miniPillText.innerText = `/[•]\ ${crawler.cfg.name.split('/')[0].trim()} (${shortNames[sc]})`;
+
+          playSound('user_harvest', sc);
+          resetAutoCollapseTimer();
+        });
+      });
+
+      // 15. 品种选择器事件
+      const speciesButtons = document.querySelectorAll('.species-btn');
+      speciesButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          speciesButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const spKey = btn.getAttribute('data-species');
+          crawler.setSpecies(spKey);
+
+          const shortNames = { 1.0: '小', 1.55: '中', 2.3: '大' };
+          document.getElementById('hud-status-badge').innerText = crawler.cfg.name.split('/')[0].trim();
+          miniPillText.innerText = `/[•]\ ${crawler.cfg.name.split('/')[0].trim()} (${shortNames[crawler.scale]})`;
+          playSound('scan', crawler.scale);
+          logSnifferEvent('SPECIES', `切换形态: ${crawler.cfg.name.split('/')[0].trim()}`, 'RECONFIGURED');
+          resetAutoCollapseTimer();
+        });
+      });
+
+      // 16. 模式切换
+      const modeButtons = document.querySelectorAll('.hud-mode-grid .hud-btn');
+      const hudStatusTip = document.getElementById('hud-status-tip');
+
+      modeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          modeButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentMode = btn.getAttribute('data-mode');
+
+          const tips = {
+            target: '🎯 模式：点击任意资料优先抓取，满 3 件自动跑去左侧蛛网挂存！',
+            follow: '🧲 模式：点击资料时先去执行抓取，抓完后才恢复紧跟滑鼠！',
+            flee: '⚡ 模式：惊扰避让已激活，当鼠标靠近时，蜘蛛会受惊避开！',
+            auto: '🌐 模式：自主漫游激活，自动抓取文字并呈现多彩动态变异样式！'
+          };
+          hudStatusTip.innerText = tips[currentMode];
+          logSnifferEvent('MODE', `切换互动模式: ${currentMode.toUpperCase()}`, 'MODE UPDATED');
+          resetAutoCollapseTimer();
+        });
+      });
+
+      // 音效开关
+      const btnSound = document.getElementById('btn-toggle-sound');
+      btnSound.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        btnSound.innerText = soundEnabled ? '🔊 音效: 开' : '🔇 音效: 关';
+        resetAutoCollapseTimer();
+      });
+
+      // 清空蛛网与药丸
+      document.getElementById('btn-clear-web').addEventListener('click', () => {
+        crawler.userTetheredPills = [];
+        webLair.clear();
+        document.querySelectorAll('.crawled-target').forEach(el => {
+          el.className = el.className.replace(/scanned-preset-\d/g, '').replace(/is-being-scanned/g, '').replace(/captured-burst-wobble/g, '').trim();
+          delete el.dataset.lastHarvested;
+        });
+        resetAutoCollapseTimer();
+      });
+
+      // 居中重置
+      document.getElementById('btn-reset-pos').addEventListener('click', () => {
+        crawler.x = width / 2;
+        crawler.y = window.scrollY + height / 2;
+        crawler.destX = crawler.x;
+        crawler.destY = crawler.y;
+        crawler.isExecutingPriorityTask = false;
+        crawler.isStashingFood = false;
+        crawler.isHuntingFly = false;
+        crawler.isCarryingFly = false;
+        crawler.eyesRed = false;
+        playSound('user_harvest', crawler.scale);
+        resetAutoCollapseTimer();
+      });
+
+      // 拟物特技手动触发 (飞扑突脸吓人 / 隐匿消散倒挂吊落)
+      const btnTrickPounce = document.getElementById('btn-trick-pounce');
+      if (btnTrickPounce) {
+        btnTrickPounce.addEventListener('click', (e) => {
+          e.stopPropagation();
+          crawler.startTrick('pounce');
+          resetAutoCollapseTimer();
+        });
+      }
+      const btnTrickRappel = document.getElementById('btn-trick-rappel');
+      if (btnTrickRappel) {
+        btnTrickRappel.addEventListener('click', (e) => {
+          e.stopPropagation();
+          crawler.startTrick('rappel');
+          resetAutoCollapseTimer();
+        });
+      }
+
+      // 18. 用户手动滚动检测 (保证用户手动滚轮浏览时不产生冲突)
+      let userManualScrollTimer = null;
+      let userIsManualScrolling = false;
+      const markUserScrolling = () => {
+        userIsManualScrolling = true;
+        clearTimeout(userManualScrollTimer);
+        userManualScrollTimer = setTimeout(() => {
+          userIsManualScrolling = false;
+        }, 2200);
+      };
+      window.addEventListener('wheel', markUserScrolling, { passive: true });
+      window.addEventListener('touchmove', markUserScrolling, { passive: true });
+
+      // 19. 赛博背景音乐播放器 (Arachnid Pulse.mp3 - 左下角可调大小声)
+      const bgAudio = document.getElementById('bg-audio-player');
+      const btnMusicToggle = document.getElementById('btn-music-toggle');
+      const btnMusicMute = document.getElementById('btn-music-mute');
+      const musicVolSlider = document.getElementById('music-vol-slider');
+      const musicVolLabel = document.getElementById('music-vol-label');
+      const musicWidget = document.getElementById('cyber-music-widget');
+
+      let musicPlaying = false;
+      let lastVolume = 0.16;
+
+      if (bgAudio) {
+        bgAudio.volume = 0.16;
+
+        function setPlayState(playing) {
+          musicPlaying = playing;
+          if (btnMusicToggle) {
+            btnMusicToggle.innerText = playing ? '⏸' : '▶';
+            btnMusicToggle.title = playing ? '暂停背景音乐' : '播放背景音乐';
+          }
+          if (musicWidget) {
+            if (playing) musicWidget.classList.add('is-playing');
+            else musicWidget.classList.remove('is-playing');
+          }
+        }
+
+        // 立即尝试启动播放，并让 UI 从一开始就处于播放激活状态
+        function triggerPlay() {
+          const p = bgAudio.play();
+          if (p !== undefined) {
+            p.then(() => {
+              setPlayState(true);
+            }).catch(() => {
+              // 若浏览器对无交互自动播放有权限保护，UI 保持开启动态，用户任意首个操作立即唤醒声音
+              setPlayState(true);
+            });
+          }
+        }
+
+        function triggerPause() {
+          bgAudio.pause();
+          setPlayState(false);
+        }
+
+        if (btnMusicToggle) {
+          btnMusicToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (bgAudio.paused) {
+              triggerPlay();
+            } else {
+              triggerPause();
+            }
+          });
+        }
+
+        if (musicVolSlider) {
+          musicVolSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            bgAudio.volume = val;
+            bgAudio.muted = (val === 0);
+            if (val > 0) lastVolume = val;
+            if (musicVolLabel) musicVolLabel.innerText = `${Math.round(val * 100)}%`;
+            if (btnMusicMute) btnMusicMute.innerText = val === 0 ? '🔇' : '🔊';
+
+            if (val > 0 && bgAudio.paused && musicPlaying) {
+              bgAudio.play().catch(() => {});
+            }
+          });
+        }
+
+        if (btnMusicMute) {
+          btnMusicMute.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (bgAudio.muted || bgAudio.volume === 0) {
+              bgAudio.muted = false;
+              const restore = lastVolume > 0 ? lastVolume : 0.16;
+              bgAudio.volume = restore;
+              if (musicVolSlider) musicVolSlider.value = restore;
+              if (musicVolLabel) musicVolLabel.innerText = `${Math.round(restore * 100)}%`;
+              btnMusicMute.innerText = '🔊';
+              btnMusicMute.title = '静音 (Mute)';
+              if (bgAudio.paused) triggerPlay();
+            } else {
+              lastVolume = bgAudio.volume;
+              bgAudio.muted = true;
+              if (musicVolSlider) musicVolSlider.value = 0;
+              if (musicVolLabel) musicVolLabel.innerText = '0%';
+              btnMusicMute.innerText = '🔇';
+              btnMusicMute.title = '取消静音 (Unmute)';
+            }
+          });
+        }
+
+        // 一开始音乐启动
+        triggerPlay();
+
+        const unlockAudioOnGesture = () => {
+          if (bgAudio.paused) {
+            bgAudio.play().then(() => setPlayState(true)).catch(() => {});
+          }
+          ['pointerdown', 'click', 'keydown', 'scroll', 'wheel', 'touchstart', 'mousemove'].forEach(evt => {
+            window.removeEventListener(evt, unlockAudioOnGesture, true);
+          });
+        };
+        ['pointerdown', 'click', 'keydown', 'scroll', 'wheel', 'touchstart', 'mousemove'].forEach(evt => {
+          window.addEventListener(evt, unlockAudioOnGesture, { capture: true, passive: true });
+        });
+      }
+
+      // 20. 动画主循环
+      let cachedTargets = getTargetElements();
+      let frame = 0;
+
+      function render() {
+        ctx.clearRect(0, 0, width, height);
+
+        frame++;
+        if (frame % 45 === 0) {
+          cachedTargets = getTargetElements();
+        }
+
+        const scrollY = window.scrollY;
+
+        // 检查小飞虫 30 秒定时生成机制
+        checkBugSpawn();
+
+        // 更新与绘制左侧大型发光蜘蛛网
+        webLair.update();
+        webLair.draw(ctx, scrollY);
+
+        // 更新与绘制小飞虫
+        activeFly.update(crawler);
+        activeFly.draw(ctx, scrollY);
+
+        // 更新与绘制单只机械蜘蛛
+        crawler.update(cachedTargets);
+        crawler.draw(ctx, scrollY, cachedTargets);
+
+        // ==========================================
+        // 【核心功能】：自主漫游镜头平滑自动跟随
+        // (如蜘蛛到下方页面，页面就自动跟随)
+        // ==========================================
+        if (currentMode === 'auto' && !userIsManualScrolling) {
+          const screenY = crawler.y - scrollY;
+          const vh = window.innerHeight;
+          const maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
+
+          // 当漫游蜘蛛进入下半部视界 (偏下方) 且下方还有内容，页面平滑向下滚动跟随
+          if (screenY > vh * 0.58 && scrollY < maxScroll) {
+            const diff = screenY - (vh * 0.46);
+            const scrollStep = Math.min(11 * Math.max(1, crawler.speedMultiplier), Math.max(0.8, diff * 0.07));
+            if (scrollStep > 0.3) {
+              window.scrollBy(0, scrollStep);
+            }
+          } else if (screenY < vh * 0.28 && scrollY > 0) {
+            // 当蜘蛛漫游重回上方视界，镜头平滑向上跟随
+            const diff = (vh * 0.46) - screenY;
+            const scrollStep = Math.min(11 * Math.max(1, crawler.speedMultiplier), Math.max(0.8, diff * 0.07));
+            if (scrollStep > 0.3) {
+              window.scrollBy(0, -scrollStep);
+            }
+          }
+        }
+
+        // 更新与绘制数码微型烟火火花与冲击光波
+        updateAndDrawFireworks(ctx, scrollY);
+
+        // 更新与绘制右下方悬浮全息星图雷达
+        constellationRadar.updateAndDraw(crawler, cachedTargets, activeFly);
+
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+
+    })();
+  </script>
+</body>
+</html>
