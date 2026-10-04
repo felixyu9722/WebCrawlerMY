@@ -80,6 +80,19 @@
       flex-direction: column;
       align-items: flex-end;
       font-family: var(--code-font);
+      transition: opacity 0.5s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* 不活动时 HUD 药丸也淡出 */
+    .hud-wrapper.is-idle:not(.is-open) {
+      opacity: 0.18;
+      transform: scale(0.88) translateY(-3px);
+      pointer-events: none;
+    }
+    .hud-wrapper.is-idle:not(.is-open):hover {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
     }
 
     /* 折叠后的迷你徽章 */
@@ -421,13 +434,26 @@
       font-family: var(--code-font);
       font-size: 11px;
       pointer-events: auto;
-      transition: all 0.3s;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       min-width: 236px;
     }
 
     .cyber-music-widget:hover {
       border-color: var(--accent-cyan);
       box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+
+    /* 不活动时自动淡出 — 音乐 widget */
+    .cyber-music-widget.is-idle {
+      opacity: 0.18;
+      transform: scale(0.88) translateY(4px);
+      pointer-events: none;
+    }
+    .cyber-music-widget.is-idle:hover,
+    .cyber-music-widget:not(.is-idle) {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
     }
 
     .music-widget-header {
@@ -461,6 +487,12 @@
       background: var(--accent-cyan);
       border-radius: 1px;
       transition: height 0.15s ease;
+    }
+
+    /* 提示动画 */
+    @keyframes hintPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     .cyber-music-widget.is-playing .music-bar:nth-child(1) { animation: musicWave 0.7s infinite alternate ease-in-out; }
@@ -1020,13 +1052,26 @@
       display: flex;
       flex-direction: column;
       padding: 10px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       user-select: none;
     }
 
     .cyber-radar-widget:hover {
       border-color: rgba(0, 240, 255, 0.65);
       box-shadow: 0 14px 40px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 240, 255, 0.28);
+    }
+
+    /* 不活动时自动淡出 — 雷达 widget */
+    .cyber-radar-widget.is-idle {
+      opacity: 0.16;
+      transform: scale(0.88) translateY(4px);
+      pointer-events: none;
+    }
+    .cyber-radar-widget.is-idle:hover,
+    .cyber-radar-widget:not(.is-idle) {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
     }
 
     .cyber-radar-widget.is-collapsed {
@@ -1180,10 +1225,345 @@
       box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
       color: #fff;
     }
+
+    /* ============================================================
+       📱 响应式设计 — 平板 & 手机 Mobile / Tablet Responsive
+       ============================================================ */
+
+    /* ── 平板 (≤ 900px) ── */
+    @media (max-width: 900px) {
+      .container {
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 28px 18px 160px;
+      }
+
+      h1.page-title {
+        font-size: 1.75rem;
+      }
+
+      .subtitle-my {
+        font-size: 1rem;
+      }
+
+      /* HUD 面板宽度自适应 */
+      .hud-wrapper {
+        top: 12px;
+        right: 12px;
+      }
+
+      .hud-expanded-panel {
+        width: 300px;
+      }
+
+      /* 左下角 widgets 稍微缩进 */
+      .web-lair-widget {
+        bottom: 90px;
+        left: 12px;
+      }
+
+      .cyber-music-widget {
+        bottom: 14px;
+        left: 12px;
+        min-width: 210px;
+      }
+    }
+
+    /* ── 手机 (≤ 600px) ── */
+    @media (max-width: 600px) {
+      /* 全宽容器 */
+      .container {
+        padding: 20px 14px 200px;
+      }
+
+      h1.page-title {
+        font-size: 1.42rem;
+        letter-spacing: -0.2px;
+      }
+
+      .subtitle-my {
+        font-size: 0.92rem;
+      }
+
+      p.paragraph-zh {
+        font-size: 14px;
+      }
+
+      p.paragraph-ms {
+        font-size: 13px;
+      }
+
+      .article-section {
+        padding: 16px 14px;
+        margin-bottom: 16px;
+      }
+
+      .article-heading {
+        font-size: 1.1rem;
+      }
+
+      .header-meta {
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 11px;
+      }
+
+      /* HUD：全宽下拉，贴屏幕右上 */
+      .hud-wrapper {
+        top: 10px;
+        right: 10px;
+      }
+
+      .hud-expanded-panel {
+        width: calc(100vw - 24px);
+        right: 0;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .hud-mini-pill {
+        padding: 7px 12px;
+        font-size: 10.5px;
+      }
+
+      /* 3列栅格在小屏幕降为2列 */
+      .hud-size-grid,
+      .species-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .size-btn,
+      .species-btn,
+      .hud-btn {
+        padding: 8px 6px;
+        font-size: 11px;
+      }
+
+      /* 音乐播放器 & 蜘蛛巢穴 widget 移到右下角并堆叠 */
+      .cyber-music-widget {
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        min-width: 0;
+        width: calc(100vw - 28px);
+        max-width: 360px;
+      }
+
+      .web-lair-widget {
+        display: none; /* 手机隐藏巢穴统计，节省空间；可按需保留 */
+      }
+
+      /* 容器底部 padding 足够放下音乐栏 */
+      .container {
+        padding-bottom: 120px;
+      }
+
+      /* 触摸友好 — 蜘蛛可交互文字格增大点击区 */
+      .crawled-target {
+        padding: 3px 8px;
+        font-size: 0.95em;
+      }
+
+      /* 音乐控制按钮放大便于手指点击 */
+      .music-btn {
+        width: 32px;
+        height: 30px;
+        font-size: 13px;
+      }
+
+      /* 速度 mini 按钮 */
+      .speed-mini-btn {
+        padding: 4px 9px;
+        font-size: 10.5px;
+      }
+    }
+
+    /* ── 超小屏 (≤ 380px，如 iPhone SE) ── */
+    @media (max-width: 380px) {
+      h1.page-title {
+        font-size: 1.22rem;
+      }
+
+      .hud-expanded-panel {
+        width: calc(100vw - 20px);
+      }
+
+      .hud-size-grid,
+      .species-grid,
+      .hud-mode-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* ============================================================
+       🚀 确认启动画面 (START Overlay)
+       ============================================================ */
+    .cyber-start-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, rgba(10, 16, 26, 0.88) 0%, rgba(3, 6, 12, 0.96) 100%);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+      padding: 20px;
+    }
+
+    .cyber-start-card {
+      background: rgba(13, 19, 32, 0.9);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      border-radius: 20px;
+      padding: 36px 30px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(0, 240, 255, 0.2), inset 0 0 30px rgba(0, 240, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      animation: startCardFloat 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes startCardFloat {
+      0% { transform: translateY(0px); }
+      100% { transform: translateY(-6px); }
+    }
+
+    .cyber-start-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(transparent, rgba(0, 240, 255, 0.09), transparent 30%);
+      animation: startRotate 8s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes startRotate {
+      100% { transform: rotate(360deg); }
+    }
+
+    .cyber-start-icon {
+      font-size: 52px;
+      filter: drop-shadow(0 0 16px rgba(0, 240, 255, 0.6));
+      animation: startPulse 2.2s infinite ease-in-out;
+    }
+
+    @keyframes startPulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.5)); }
+      50% { transform: scale(1.08); filter: drop-shadow(0 0 24px rgba(255, 0, 85, 0.8)); }
+    }
+
+    .cyber-start-title {
+      font-family: var(--display-font);
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+      margin: 0;
+      text-shadow: 0 0 14px rgba(0, 240, 255, 0.6);
+    }
+
+    .cyber-start-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .cyber-start-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin: 4px 0 10px 0;
+    }
+
+    .cyber-start-tag {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--accent-cyan);
+    }
+
+    .btn-cyber-start-action {
+      background: linear-gradient(135deg, #00f0ff 0%, #ff0055 100%);
+      border: none;
+      color: #fff;
+      font-family: var(--display-font);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      padding: 15px 46px;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.55), 0 0 40px rgba(255, 0, 85, 0.35);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .btn-cyber-start-action:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.85), 0 0 50px rgba(255, 0, 85, 0.55);
+    }
+
+    .btn-cyber-start-action:active {
+      transform: scale(0.96);
+    }
+
+    .cyber-start-footer-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+      margin: 0;
+    }
+
   </style>
 </head>
 
 <body>
+
+  <!-- 🚀 启动确认全屏模态窗口 (START Overlay) -->
+  <div class="cyber-start-overlay" id="cyber-start-overlay">
+    <div class="cyber-start-card">
+      <div class="cyber-start-icon">🕷️</div>
+      <h2 class="cyber-start-title">WEB CRAWLER</h2>
+      <p class="cyber-start-subtitle">
+        赛博仿生机械蛛 • 自主漫游与网页猎食系统<br>
+        <span style="font-size: 11.5px; color: var(--accent-cyan);">Cyber Arachnid Simulation & Audio Engine</span>
+      </p>
+
+      <div class="cyber-start-tags">
+        <span class="cyber-start-tag">🎵 自动背景音乐</span>
+        <span class="cyber-start-tag">🕸️ 蛛网猎食</span>
+        <span class="cyber-start-tag">📱 手机触控</span>
+      </div>
+
+      <button class="btn-cyber-start-action" id="btn-cyber-start">
+        <span>▶ START</span>
+      </button>
+
+      <p class="cyber-start-footer-hint">点击进入系统并自动开启背景音乐 / Press Enter to Start</p>
+    </div>
+  </div>
 
   <!-- 顶层 Canvas，渲染侧边大型发光蜘蛛网、机械蜘蛛、飞入昆虫、IK肢足与挂网药丸 -->
   <canvas id="crawler-canvas"></canvas>
@@ -1205,6 +1585,22 @@
 
   <!-- 侧边黑空位：赛博背景音乐控制器 (左下角可调大小声) -->
   <aside class="cyber-music-widget" id="cyber-music-widget">
+    <!-- 解锁提示：默认由 START 确认画面统一触发 -->
+    <div id="music-unlock-hint" style="
+      display: none;
+      align-items: center;
+      gap: 5px;
+      font-size: 9.5px;
+      color: var(--accent-orange);
+      background: rgba(255,145,0,0.08);
+      border: 1px solid rgba(255,145,0,0.3);
+      border-radius: 5px;
+      padding: 4px 8px;
+      margin-bottom: 7px;
+      animation: hintPulse 2s infinite;
+      transition: opacity 0.4s, transform 0.4s;
+    ">⚠️ 页面播放中，点击任意处开声音 / Tap to unmute
+    </div>
     <div class="music-widget-header">
       <div class="music-title-group">
         <span>🎵 MUSIC</span>
@@ -1219,15 +1615,16 @@
       </div>
     </div>
     <div class="music-controls-row">
-      <button class="music-btn" id="btn-music-toggle" title="播放 / 暂停 (Play/Pause)">▶</button>
-      <button class="music-btn" id="btn-music-mute" title="静音 / 恢复 (Mute)">🔊</button>
+      <button class="music-btn" id="btn-music-toggle" title="播放 / 暂停 (Play/Pause)">⏸</button>
+      <button class="music-btn" id="btn-music-mute" title="静音中，点击开声">🔇</button>
       <div class="music-vol-slider-wrap">
-        <input type="range" class="music-vol-slider" id="music-vol-slider" min="0" max="1" step="0.01" value="0.16" title="调节音量 / Adjust Volume">
-        <span class="music-vol-label" id="music-vol-label">16%</span>
+        <input type="range" class="music-vol-slider" id="music-vol-slider" min="0" max="1" step="0.01" value="0" title="调节音量 / Adjust Volume">
+        <span class="music-vol-label" id="music-vol-label">0%</span>
       </div>
     </div>
   </aside>
-  <audio id="bg-audio-player" src="Arachnid%20Pulse.mp3" preload="auto" loop autoplay></audio>
+  <!-- muted 允许浏览器自动播放；JS 会在首次用户交互时自动取消静音并淡入 -->
+  <audio id="bg-audio-player" src="Arachnid%20Pulse.mp3" preload="auto" loop autoplay muted></audio>
 
   <!-- 自动收藏 / 折叠的控制面板 (HUD) -->
   <aside class="hud-wrapper" id="hud-wrapper">
@@ -1814,86 +2211,97 @@
           this.vy = 0;
           this.wingPhase = 0;
           this.lifeTime = 0;
+          this.isFullyEntered = false; // 是否已完全飞入画面（在此之前蜘蛛不会追补）
         }
 
         spawn(spider) {
           this.active = true;
           this.isCaught = false;
           this.lifeTime = 0;
+          this.isFullyEntered = false; // 重置：需要重新飞入
 
           const scrollY = window.scrollY;
           const vW = window.innerWidth;
           const vH = window.innerHeight;
 
-          // 用户指令：设置出现要离蜘蛛远些！
-          // 根据蜘蛛当前在屏幕视口中的坐标，将飞虫生成在对侧远离蜘蛛的视口边缘
           const spX = spider ? spider.x : vW * 0.5;
           const spScreenY = spider ? (spider.y - scrollY) : vH * 0.5;
 
-          // 水平对侧位置（距离蜘蛛至少 550px - 900px）
+          // 从屏幕边缘外飞入（起始位置在视口外）
           if (spX < vW * 0.5) {
-            // 蜘蛛在左侧，飞虫从视口右侧边缘飞入
-            this.x = Math.max(vW * 0.75, vW - 140 - Math.random() * 120);
+            // 蜘蛛在左，飞虫从右边界外飞入
+            this.x = vW + 60 + Math.random() * 40; // 屏幕右边外
           } else {
-            // 蜘蛛在右侧，飞虫从视口左侧边缘飞入
-            this.x = Math.min(vW * 0.25, 140 + Math.random() * 120);
+            // 蜘蛛在右，飞虫从左边界外飞入
+            this.x = -60 - Math.random() * 40; // 屏幕左边外
           }
 
-          // 垂直对侧位置
+          // 垂直方向：和蜘蛛对侧
           if (spScreenY < vH * 0.5) {
-            // 蜘蛛在上方，飞虫从下方飞入
-            this.y = scrollY + Math.max(vH * 0.65, vH - 150 - Math.random() * 100);
+            this.y = scrollY + vH * 0.75 + Math.random() * 80;
           } else {
-            // 蜘蛛在下方，飞虫从上方飞入
-            this.y = scrollY + Math.min(vH * 0.35, 120 + Math.random() * 100);
+            this.y = scrollY + vH * 0.25 - Math.random() * 80;
           }
 
-          // 初始速度朝向视口中心区域盘旋
+          // 初始速度朝向视口中心区域（飞入画面）
           const targetCenterY = scrollY + vH * 0.5;
           const targetCenterX = vW * 0.5;
-          const aimAngle = Math.atan2(targetCenterY - this.y, targetCenterX - this.x) + (Math.random() - 0.5) * 0.4;
-          const initialSpeed = 3.6 + Math.random() * 1.6;
+          const aimAngle = Math.atan2(targetCenterY - this.y, targetCenterX - this.x) + (Math.random() - 0.5) * 0.3;
+          const initialSpeed = 4.2 + Math.random() * 1.4; // 稍快一点，飞入动作更清晰
           this.vx = Math.cos(aimAngle) * initialSpeed;
           this.vy = Math.sin(aimAngle) * initialSpeed;
 
           playSound('fly_buzz');
-          playSound('predator_alert', 1.3);
+          // 延迟发布警报音效（飞入后才触发，不是生成时）
         }
 
         update(spider) {
           if (!this.active) return;
           this.lifeTime++;
-          this.wingPhase += 0.85; // 50Hz 振翅频率
+          this.wingPhase += 0.85;
 
-          // 若已被蜘蛛捕获：粘附在蜘蛛身体前方，被带往蜘蛛网
           if (this.isCaught) {
             this.x = spider.x + Math.cos(spider.angle) * 18 * spider.scale;
             this.y = spider.y + Math.sin(spider.angle) * 18 * spider.scale;
             return;
           }
 
+          // 检测是否已完全飞入画面（飞入阶段：前 65 帧 + 已进入视口内部）
+          if (!this.isFullyEntered) {
+            const sYc = window.scrollY;
+            const vWc = window.innerWidth;
+            const vHc = window.innerHeight;
+            const inViewport = (
+              this.x > 30 && this.x < vWc - 30 &&
+              this.y > sYc + 30 && this.y < sYc + vHc - 30
+            );
+            // 进入视口内且飞行时间足够 (65帧≈ 1秒)才算完全飞入
+            if (inViewport && this.lifeTime >= 65) {
+              this.isFullyEntered = true;
+              // 在这个时刻才发布警报音效，蜘蛛才开始注意到
+              playSound('predator_alert', 1.3);
+              logSnifferEvent('ALERT', '🚨 小飞虫已飞入画面！蜘蛛锁定目标', `COORDS [${Math.round(this.x)},${Math.round(this.y)}]`);
+            }
+          }
+
           // 正常盘旋飞行逻辑
-          // 偶尔发出嗡嗡振翅音
           if (this.lifeTime % 45 === 0 && Math.random() < 0.4) {
             playSound('fly_buzz');
           }
 
-          // 受到蜘蛛接近时的惊恐逃窜避让 (Panic Evade)
           const distToSpider = Math.hypot(this.x - spider.x, this.y - spider.y);
-          if (distToSpider < 220 * spider.scale) {
+          // 飞入阶段（未完全进入）：不迟避蜘蛛，继续向画面中心飞入
+          if (this.isFullyEntered && distToSpider < 220 * spider.scale) {
             const evadeAngle = Math.atan2(this.y - spider.y, this.x - spider.x);
-            // 爆发逃窜移速
             this.vx += Math.cos(evadeAngle) * 0.85;
             this.vy += Math.sin(evadeAngle) * 0.85;
           } else {
-            // 醉汉步态自然盘旋 (Wobble)
             this.vx += (Math.random() - 0.5) * 0.4 + Math.sin(this.lifeTime * 0.08) * 0.2;
             this.vy += (Math.random() - 0.5) * 0.4 + Math.cos(this.lifeTime * 0.08) * 0.2;
           }
 
-          // 限制飞虫最大移速
           const spd = Math.hypot(this.vx, this.vy);
-          const maxSpd = distToSpider < 160 ? 5.8 : 3.8;
+          const maxSpd = (this.isFullyEntered && distToSpider < 160) ? 5.8 : 3.8;
           if (spd > maxSpd) {
             this.vx = (this.vx / spd) * maxSpd;
             this.vy = (this.vy / spd) * maxSpd;
@@ -1902,14 +2310,16 @@
           this.x += this.vx;
           this.y += this.vy;
 
-          // 保证飞虫在当前视口可见区域盘旋（不飞出可视区域）
-          const sY = window.scrollY;
-          const vH = window.innerHeight;
-          const vW = window.innerWidth;
-          if (this.x < 60) this.vx += 0.6;
-          if (this.x > vW - 60) this.vx -= 0.6;
-          if (this.y < sY + 60) this.vy += 0.6;
-          if (this.y > sY + vH - 60) this.vy -= 0.6;
+          // 完全进入后才保证在视口内盘旋
+          if (this.isFullyEntered) {
+            const sY = window.scrollY;
+            const vH = window.innerHeight;
+            const vW = window.innerWidth;
+            if (this.x < 60) this.vx += 0.6;
+            if (this.x > vW - 60) this.vx -= 0.6;
+            if (this.y < sY + 60) this.vy += 0.6;
+            if (this.y > sY + vH - 60) this.vy -= 0.6;
+          }
         }
 
         draw(ctx, scrollY) {
@@ -2722,6 +3132,74 @@
         });
       }
 
+      // ============================================================
+      // 🌙 全局 Idle 检测 — 5秒无操作自动隐藏所有 Widget
+      // 任意鼠标/触摸活动立即恢复，widget hover 时也恢复
+      // ============================================================
+      (function initIdleSystem() {
+        const IDLE_MS = 5000; // 5秒无操作触发隐藏
+        let idleTimer = null;
+        let isIdle = false;
+
+        const widgetsToIdle = [
+          document.getElementById('cyber-music-widget'),
+          document.getElementById('cyber-radar-widget'),
+          document.getElementById('hud-wrapper'),
+          document.getElementById('web-lair-widget'),
+        ].filter(Boolean);
+
+        function setIdle(idle) {
+          isIdle = idle;
+          widgetsToIdle.forEach(w => {
+            if (idle) {
+              w.classList.add('is-idle');
+              // 雷达也自动折叠
+              if (w.id === 'cyber-radar-widget' && !w.classList.contains('is-collapsed')) {
+                w.classList.add('is-collapsed');
+                const rb = document.getElementById('radar-toggle-btn');
+                if (rb) rb.innerText = '▲';
+                w._wasCollapsedByIdle = true;
+              }
+              // HUD 也自动关闭
+              if (w.id === 'hud-wrapper' && w.classList.contains('is-open')) {
+                w.classList.remove('is-open');
+                w._wasOpenByIdle = true;
+              }
+            } else {
+              w.classList.remove('is-idle');
+              // 雷达恢复展开（如果是被 idle 折叠的）
+              if (w.id === 'cyber-radar-widget' && w._wasCollapsedByIdle) {
+                w.classList.remove('is-collapsed');
+                const rb = document.getElementById('radar-toggle-btn');
+                if (rb) rb.innerText = '▼';
+                w._wasCollapsedByIdle = false;
+              }
+            }
+          });
+        }
+
+        function resetIdleTimer() {
+          if (idleTimer) clearTimeout(idleTimer);
+          if (isIdle) setIdle(false); // 立即恢复
+          idleTimer = setTimeout(() => setIdle(true), IDLE_MS);
+        }
+
+        // Widget hover 时也重置计时器
+        widgetsToIdle.forEach(w => {
+          w.addEventListener('mouseenter', resetIdleTimer, { passive: true });
+          w.addEventListener('touchstart', resetIdleTimer, { passive: true });
+          w.addEventListener('pointerdown', resetIdleTimer, { passive: true });
+        });
+
+        // 全局活动监听
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart', 'pointerdown'].forEach(evt => {
+          window.addEventListener(evt, resetIdleTimer, { passive: true, capture: false });
+        });
+
+        // 初始启动计时
+        resetIdleTimer();
+      })();
+
       // 8. 实体数据药丸 (用户指令：抓取后带着的文字无繁重发光效果，以素雅暗灰色显示，轻量流畅)
       class UserTetheredPill {
         constructor(text, bgCol, textCol, targetX, targetY, scale = 1.0) {
@@ -2955,15 +3433,23 @@
           } else {
             this.trickState = 'rappel';
             this.trickTimer = 0;
-            // 真实长白丝从屏幕最顶部甚至视口上方垂落下来
-            const screenTopWorldY = window.scrollY - 160;
-            this.silkAnchorY = screenTopWorldY;
-            this.rappelStartY = screenTopWorldY - 30;
-            this.rappelTargetY = this.y;
-            this.angle = Math.PI / 2; // 真实蜘蛛倒挂：头朝下！
+
+            // 丝线锚点：固定在页面文档最顶端（world 坐标 Y = 0 上方）
+            this.silkAnchorY = -80; // world Y
+            this.rappelStartY = -120; // 出现位置（顶部以上，消散后挂出）
+
+            // 下落目标：页面内容底部（不超出页面边界）
+            const pageBottom = document.body.scrollHeight - 80;
+            this.rappelTargetY = pageBottom;
+
+            // 下落总帧数：速度 ×1.5（每帧 ~3.3px，比原来快0.5倍）
+            const totalDist = this.rappelTargetY - this.rappelStartY;
+            this.rappelDropFrames = Math.max(185, Math.round(totalDist / 3.3));
+
+            this.angle = Math.PI / 2; // 倒立：头朝下
             playSound('silk_drop', this.scale);
-            document.getElementById('hud-status-badge').innerText = '🕸️ 吐白丝倒挂吊落中...';
-            logSnifferEvent('TRICK', '🌫️ 蜘蛛遁入暗影消散，自顶端吐长白丝垂落倒挂', 'SILK RAPPEL');
+            document.getElementById('hud-status-badge').innerText = '🕸️ 吐白丝从顶吊落至底部...';
+            logSnifferEvent('TRICK', '🌫️ 蜘蛛消散，自页面顶端吐长白丝垂落至页面底部！', 'FULL RAPPEL');
           }
         }
 
@@ -3091,43 +3577,72 @@
                 logSnifferEvent('TRICK', '🕷️ 飞扑突脸特技完成，机械蜘蛛回归潜行状态', 'NORMAL');
               }
             } else if (this.trickState === 'rappel') {
-              // 真实蜘蛛隐匿消散·吐长白丝倒挂垂落拟物特技 (总时长约 220 帧，~3.6秒)
-              if (this.trickTimer < 28) {
-                // 1. 拟物暗影快速消散
-                this.trickOpacity = Math.max(0, 1 - (this.trickTimer / 28));
-              } else if (this.trickTimer < 50) {
-                // 2. 完全消失不见 (在屏幕上方高处准备垂落)
-                this.trickOpacity = 0;
+              // ===================================================
+              // 🕸️ 从顶到底全程吊落 (Full Page Rappel)
+              // 阶段 0  [0~30]   : 消散隐身
+              // 阶段 1  [30~55]  : 出现在顶部
+              // 阶段 2  [55~55+rappelDropFrames] : 持续吊落到底部，视图跟随
+              // 阶段 3  [到达底部后 +40帧]         : 落地弹动 + 恢复
+              // ===================================================
+              const PHASE_VANISH_END   = 30;
+              const PHASE_APPEAR_END   = 55;
+              const PHASE_DROP_END     = PHASE_APPEAR_END + this.rappelDropFrames;
+              const PHASE_LAND_END     = PHASE_DROP_END + 45;
+
+              if (this.trickTimer < PHASE_VANISH_END) {
+                // 1. 消散隐身
+                this.trickOpacity = Math.max(0, 1 - (this.trickTimer / PHASE_VANISH_END));
+
+              } else if (this.trickTimer < PHASE_APPEAR_END) {
+                // 2. 在页面顶部重现
+                this.trickOpacity = (this.trickTimer - PHASE_VANISH_END) / (PHASE_APPEAR_END - PHASE_VANISH_END);
                 this.y = this.rappelStartY;
-                this.angle = Math.PI / 2; // 倒立：头朝下
-              } else if (this.trickTimer < 165) {
-                // 3. 从天而降！吐长白丝倒挂吊落！
+                this.x = width / 2; // 屏幕水平中央吊落
+                this.angle = Math.PI / 2;
+
+              } else if (this.trickTimer < PHASE_DROP_END) {
+                // 3. 持续吊落：线性下落 + 轻微弹性摆动
                 this.trickOpacity = 1.0;
-                const p = (this.trickTimer - 50) / 115;
-                // 真实重力与蛛丝阻尼弹性下落：快速下坠，接近底部时产生蛛丝弹性缓冲弹动
-                const dropEase = 1 - Math.cos(p * Math.PI * 0.5);
-                const bounce = Math.sin(p * Math.PI * 3.5) * (1 - p) * 16 * this.scale;
-                this.y = this.rappelStartY + (this.rappelTargetY - this.rappelStartY) * dropEase + bounce;
-                // 空气微风导致的长丝钟摆轻柔摆动 (真实物理摆动)
-                this.angle = Math.PI / 2 + Math.sin(p * Math.PI * 2.8) * 0.16 * (1 - p * 0.6);
-              } else if (this.trickTimer < 195) {
-                // 4. 前爪触地！收起长白蛛丝，轻盈转正身姿
-                this.y += (this.rappelTargetY - this.y) * 0.18;
-                this.angle += (0 - this.angle) * 0.12;
+                const p = (this.trickTimer - PHASE_APPEAR_END) / this.rappelDropFrames;
+                // 真实重力：先快后慢（ease-in-out）+ 轻微钟摆
+                const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+                const swing = Math.sin(p * Math.PI * 5) * (1 - p) * 10 * this.scale;
+                this.y = this.rappelStartY + (this.rappelTargetY - this.rappelStartY) * ease;
+                this.x = width / 2 + swing;
+                this.angle = Math.PI / 2 + Math.sin(p * Math.PI * 4) * 0.14 * (1 - p * 0.7);
+
+                // 视图自动跟随蜘蛛（平滑滚动）
+                const screenY = this.y - window.scrollY;
+                const viewH = window.innerHeight;
+                if (screenY > viewH * 0.7) {
+                  window.scrollTo({ top: this.y - viewH * 0.4, behavior: 'smooth' });
+                }
+
+              } else if (this.trickTimer < PHASE_LAND_END) {
+                // 4. 到达底部：弹动落地
+                this.trickOpacity = 1.0;
+                const p = (this.trickTimer - PHASE_DROP_END) / 45;
+                const bounce = Math.sin(p * Math.PI * 3) * (1 - p) * 22 * this.scale;
+                this.y = this.rappelTargetY + bounce;
+                this.angle += (0 - this.angle) * 0.12; // 转正身姿
+
               } else {
-                // 5. 特技圆满完成，丝线断开消散，回归漫游
+                // 5. 落地完成 → 恢复活动（在页面底部漫游）
                 this.trickOpacity = 1.0;
                 this.trickState = null;
                 this.angle = 0;
                 this.y = this.rappelTargetY;
-                this.trickCooldown = 1500 + Math.random() * 900;
-                playSound('step', this.scale * 1.5);
+                // 将 destX/destY 设为底部附近，让蜘蛛先在底部漫游
+                this.destX = 80 + Math.random() * (width - 160);
+                this.destY = this.rappelTargetY - 60;
+                this.trickCooldown = 2000 + Math.random() * 1200; // 较长冷却，不立刻再做特技
+                playSound('step', this.scale * 2.0);
                 document.getElementById('hud-status-badge').innerText = this.cfg.name.split('/')[0].trim();
-                logSnifferEvent('TRICK', '🕸️ 吐白丝倒挂特技完成，机械蜘蛛优雅归位', 'NORMAL');
+                logSnifferEvent('TRICK', '🕸️ 吊落到底！蜘蛛在页面底部重新开始活动', 'LANDED');
               }
 
-              // 倒吊期间使用专属的真实蜘蛛悬空肢足抓丝与探地动作
-              if (this.trickOpacity > 0.05 && this.trickTimer >= 50 && this.trickTimer < 190) {
+              // 倒吊期间使用专属的悬空肢足动作
+              if (this.trickOpacity > 0.05 && this.trickTimer >= PHASE_APPEAR_END && this.trickTimer < PHASE_DROP_END + 40) {
                 this.updateDanglingLegs();
               } else {
                 this.updateGait();
@@ -3147,14 +3662,13 @@
           }
 
           // ==========================================
-          // 【核心功能】：小飞虫感知与红眼暴走追捕！
-          // (用户指令：特技执行完毕才去抓小昆虫)
+          // 【核心功能】：小飞虫感知与红眼暴走追补！
+          // 【用户指令】：特技执行完毕才去抓小昆虫；昆虫完全飞入画面后蜘蛛才开始追补
           // ==========================================
-          if (!this.trickState && activeFly.active && !activeFly.isCaught && !this.isCarryingFly) {
+          if (!this.trickState && activeFly.active && !activeFly.isCaught && !this.isCarryingFly && activeFly.isFullyEntered) {
             if (!this.isHuntingFly) {
               this.isHuntingFly = true;
-              this.eyesRed = true; // 眼睛变红不受控！
-              // 清理之前的目标，防止回网后锁死在之前目标！
+              this.eyesRed = true;
               if (this.currentTarget && this.currentTarget.el) {
                 this.currentTarget.el.classList.remove('is-being-scanned');
               }
@@ -3162,10 +3676,9 @@
               this.isScanning = false;
               this.scanProgress = 0;
               playSound('predator_alert', this.scale);
-              document.getElementById('hud-status-badge').innerText = '🚨 发现飞虫！暴走捕食中...';
-              logSnifferEvent('ALERT', '🚨 发现小飞虫入侵！双眼暴走锁定', `COORDS [${Math.round(activeFly.x)},${Math.round(activeFly.y)}]`);
+              document.getElementById('hud-status-badge').innerText = '🚨 发现飞虫！暴走节食中...';
+              logSnifferEvent('ALERT', '🚨 小飞虫飞入画面！蜘蛛双眼暴走锁定', `COORDS [${Math.round(activeFly.x)},${Math.round(activeFly.y)}]`);
             }
-            // 锁定飞虫进行狂暴冲刺！
             this.destX = activeFly.x;
             this.destY = activeFly.y;
           }
@@ -3652,13 +4165,14 @@
           // 【真实蜘蛛吐长白丝倒挂特效】(Realistic White Silk Thread Rappel)
           // (用户指令：要真实蜘蛛那种吊卦 - 稍微白色长线下来效果)
           // ==========================================
-          if (this.trickState === 'rappel' && this.silkAnchorY) {
+          if (this.trickState === 'rappel' && this.silkAnchorY !== undefined) {
             ctx.save();
-            const anchorScreenY = -40; // 始终从浏览器视口最顶端上方垂落
-            // 蜘蛛尾部 (Spinneret) 坐标：
-            // 当 angle 为 Math.PI/2 (朝下) 时，尾部在躯体上方 (-15 * sc)
+            // 丝线锚点：world Y → screen Y（固定在页面顶端，随滚动而变化）
+            const anchorScreenY = Math.max(-80, this.silkAnchorY - scrollY);
+            // 蜘蛛尾部 (Spinneret)：angle = π/2（头朝下）时尾部在躯体上方
             const tailX = screenX - Math.cos(this.angle) * (15 * sc);
             const tailY = screenY - Math.sin(this.angle) * (15 * sc);
+            const totalFrames = this.rappelDropFrames || 300;
 
             // 1. 外层柔和白丝半透光晕
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
@@ -3667,7 +4181,7 @@
             ctx.lineWidth = 2.2;
             ctx.beginPath();
             ctx.moveTo(screenX, anchorScreenY);
-            const sway = Math.sin(this.trickTimer * 0.12) * 8 * (1 - (this.trickTimer / 195));
+            const sway = Math.sin(this.trickTimer * 0.12) * 8 * (1 - (this.trickTimer / totalFrames));
             const ctrlY = (anchorScreenY + tailY) * 0.52;
             ctx.quadraticCurveTo(screenX + sway, ctrlY, tailX, tailY);
             ctx.stroke();
@@ -4393,7 +4907,9 @@
       let lastVolume = 0.16;
 
       if (bgAudio) {
-        bgAudio.volume = 0.16;
+        const TARGET_VOL = 0.16;     // 最终目标音量
+        bgAudio.volume = 0;           // 初始为 0（配合 muted autoplay）
+        bgAudio.muted = true;         // 静音启动（浏览器允许）
 
         function setPlayState(playing) {
           musicPlaying = playing;
@@ -4407,16 +4923,10 @@
           }
         }
 
-        // 立即尝试启动播放，并让 UI 从一开始就处于播放激活状态
         function triggerPlay() {
           const p = bgAudio.play();
           if (p !== undefined) {
-            p.then(() => {
-              setPlayState(true);
-            }).catch(() => {
-              // 若浏览器对无交互自动播放有权限保护，UI 保持开启动态，用户任意首个操作立即唤醒声音
-              setPlayState(true);
-            });
+            p.then(() => setPlayState(true)).catch(() => setPlayState(true));
           }
         }
 
@@ -4425,14 +4935,95 @@
           setPlayState(false);
         }
 
+        // 音量渐入 (fade-in)
+        function fadeInVolume(targetVol, durationMs) {
+          const steps = 40;
+          const interval = durationMs / steps;
+          const step = targetVol / steps;
+          let current = 0;
+          const t = setInterval(() => {
+            current = Math.min(current + step, targetVol);
+            bgAudio.volume = current;
+            if (musicVolSlider) musicVolSlider.value = current;
+            if (musicVolLabel) musicVolLabel.innerText = `${Math.round(current * 100)}%`;
+            if (current >= targetVol) clearInterval(t);
+          }, interval);
+        }
+
+        // ── 策略：静音先播（页面加载即开始），首次交互解锁并淡入音量 ──
+        bgAudio.muted = true;
+        triggerPlay(); // 静音状态，浏览器允许 autoplay
+        setPlayState(true);
+
+        // 显示解锁提示
+        const unlockHint = document.getElementById('music-unlock-hint');
+
+        let audioUnlocked = false;
+        function unlockAndPlay() {
+          if (audioUnlocked) return;
+          audioUnlocked = true;
+          ['pointerdown', 'click', 'keydown', 'scroll', 'wheel', 'touchstart'].forEach(evt => {
+            window.removeEventListener(evt, unlockAndPlay, true);
+          });
+          // 取消静音并渐入音量
+          bgAudio.muted = false;
+          lastVolume = TARGET_VOL;
+          fadeInVolume(TARGET_VOL, 800);
+          if (btnMusicMute) { btnMusicMute.innerText = '🔊'; btnMusicMute.title = '静音 (Mute)'; }
+          // 隐藏提示
+          if (unlockHint) {
+            unlockHint.style.opacity = '0';
+            unlockHint.style.transform = 'translateY(4px)';
+            setTimeout(() => { unlockHint.style.display = 'none'; }, 400);
+          }
+        }
+        ['pointerdown', 'click', 'keydown', 'scroll', 'wheel', 'touchstart'].forEach(evt => {
+          window.addEventListener(evt, unlockAndPlay, { capture: true, passive: true });
+        });
+
+        // 🚀 START 确认按钮联动逻辑 (点击 START 立即解锁并播放音乐，无缝进入系统)
+        const startOverlay = document.getElementById('cyber-start-overlay');
+        const btnCyberStart = document.getElementById('btn-cyber-start');
+
+        function launchStartScreen() {
+          if (!startOverlay || startOverlay.dataset.launched === 'true') return;
+          startOverlay.dataset.launched = 'true';
+          unlockAndPlay();
+          if (bgAudio && bgAudio.paused) triggerPlay();
+
+          startOverlay.style.opacity = '0';
+          startOverlay.style.transform = 'scale(1.05)';
+          startOverlay.style.pointerEvents = 'none';
+          setTimeout(() => {
+            startOverlay.style.display = 'none';
+          }, 500);
+        }
+
+        if (btnCyberStart) {
+          btnCyberStart.addEventListener('click', (e) => {
+            e.stopPropagation();
+            launchStartScreen();
+          });
+        }
+        if (startOverlay) {
+          startOverlay.addEventListener('click', (e) => {
+            if (e.target === startOverlay) launchStartScreen();
+          });
+        }
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            if (startOverlay && startOverlay.dataset.launched !== 'true') {
+              launchStartScreen();
+            }
+          }
+        });
+
         if (btnMusicToggle) {
           btnMusicToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (bgAudio.paused) {
-              triggerPlay();
-            } else {
-              triggerPause();
-            }
+            unlockAndPlay(); // 点击播放按钮也解锁
+            if (bgAudio.paused) triggerPlay();
+            else triggerPause();
           });
         }
 
@@ -4441,13 +5032,10 @@
             const val = parseFloat(e.target.value);
             bgAudio.volume = val;
             bgAudio.muted = (val === 0);
-            if (val > 0) lastVolume = val;
+            if (val > 0) { lastVolume = val; unlockAndPlay(); }
             if (musicVolLabel) musicVolLabel.innerText = `${Math.round(val * 100)}%`;
             if (btnMusicMute) btnMusicMute.innerText = val === 0 ? '🔇' : '🔊';
-
-            if (val > 0 && bgAudio.paused && musicPlaying) {
-              bgAudio.play().catch(() => {});
-            }
+            if (val > 0 && bgAudio.paused && musicPlaying) bgAudio.play().catch(() => {});
           });
         }
 
@@ -4456,13 +5044,14 @@
             e.stopPropagation();
             if (bgAudio.muted || bgAudio.volume === 0) {
               bgAudio.muted = false;
-              const restore = lastVolume > 0 ? lastVolume : 0.16;
+              const restore = lastVolume > 0 ? lastVolume : TARGET_VOL;
               bgAudio.volume = restore;
               if (musicVolSlider) musicVolSlider.value = restore;
               if (musicVolLabel) musicVolLabel.innerText = `${Math.round(restore * 100)}%`;
               btnMusicMute.innerText = '🔊';
               btnMusicMute.title = '静音 (Mute)';
               if (bgAudio.paused) triggerPlay();
+              unlockAndPlay();
             } else {
               lastVolume = bgAudio.volume;
               bgAudio.muted = true;
@@ -4473,21 +5062,6 @@
             }
           });
         }
-
-        // 一开始音乐启动
-        triggerPlay();
-
-        const unlockAudioOnGesture = () => {
-          if (bgAudio.paused) {
-            bgAudio.play().then(() => setPlayState(true)).catch(() => {});
-          }
-          ['pointerdown', 'click', 'keydown', 'scroll', 'wheel', 'touchstart', 'mousemove'].forEach(evt => {
-            window.removeEventListener(evt, unlockAudioOnGesture, true);
-          });
-        };
-        ['pointerdown', 'click', 'keydown', 'scroll', 'wheel', 'touchstart', 'mousemove'].forEach(evt => {
-          window.addEventListener(evt, unlockAudioOnGesture, { capture: true, passive: true });
-        });
       }
 
       // 20. 动画主循环
