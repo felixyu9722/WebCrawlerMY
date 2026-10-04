@@ -1226,6 +1226,39 @@
       color: #fff;
     }
 
+    /* 桌面端隐藏手机端底部微型Dock与关闭按钮 */
+    .mobile-bottom-dock {
+      display: none;
+    }
+    .widget-close-btn {
+      display: none;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 1px 6px;
+      line-height: 1.2;
+      transition: all 0.2s;
+    }
+    .widget-close-btn:hover {
+      background: rgba(255, 0, 85, 0.3);
+      border-color: #ff0055;
+      color: #fff;
+    }
+
+    @keyframes mobilePanelPop {
+      0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
     /* ============================================================
        📱 响应式设计 — 平板 & 手机 Mobile / Tablet Responsive
        ============================================================ */
@@ -1340,23 +1373,129 @@
         font-size: 11px;
       }
 
-      /* 音乐播放器 & 蜘蛛巢穴 widget 移到右下角并堆叠 */
+      /* 📱 手机端右下角微型控制胶囊栏 (小巧灵动，绝不遮挡重叠) */
+      .mobile-bottom-dock {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        z-index: 250;
+        pointer-events: auto;
+      }
+
+      .mobile-dock-pill {
+        background: rgba(10, 16, 26, 0.94);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 240, 255, 0.38);
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 11.5px;
+        font-family: var(--code-font);
+        color: var(--text-main);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65), 0 0 10px rgba(0, 240, 255, 0.12);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        user-select: none;
+      }
+
+      .mobile-dock-pill:active {
+        transform: scale(0.94);
+      }
+
+      .mobile-dock-pill.is-active {
+        background: rgba(0, 240, 255, 0.18);
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 16px rgba(0, 240, 255, 0.45);
+        color: #fff;
+      }
+
+      .dock-pulse-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        transition: all 0.3s;
+      }
+
+      .dock-pulse-dot.is-active {
+        background: var(--accent-lime);
+        box-shadow: 0 0 6px var(--accent-lime);
+        animation: hintPulse 1.8s infinite;
+      }
+
+      .widget-close-btn {
+        display: inline-block;
+      }
+
+      /* 手机端默认隐藏音乐与雷达大面板，只有点击右下角对应胶囊才展开 (互斥，绝不重叠) */
       .cyber-music-widget {
-        bottom: 14px;
-        left: 50%;
-        transform: translateX(-50%);
-        min-width: 0;
-        width: calc(100vw - 28px);
-        max-width: 360px;
+        display: none !important;
+      }
+
+      .cyber-music-widget.mobile-open {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 54px !important;
+        right: 12px !important;
+        left: auto !important;
+        transform: none !important;
+        width: calc(100vw - 24px) !important;
+        max-width: 320px !important;
+        z-index: 260 !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 22px rgba(0, 240, 255, 0.35) !important;
+        border: 1px solid rgba(0, 240, 255, 0.55) !important;
+        background: rgba(10, 14, 24, 0.96) !important;
+        border-radius: 14px !important;
+        animation: mobilePanelPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+
+      .cyber-radar-widget {
+        display: none !important;
+      }
+
+      .cyber-radar-widget.mobile-open {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 54px !important;
+        right: 12px !important;
+        left: auto !important;
+        transform: none !important;
+        width: 254px !important;
+        max-width: calc(100vw - 24px) !important;
+        z-index: 260 !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 22px rgba(0, 240, 255, 0.35) !important;
+        border: 1px solid rgba(0, 240, 255, 0.55) !important;
+        background: rgba(10, 14, 24, 0.96) !important;
+        border-radius: 14px !important;
+        animation: mobilePanelPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+
+      .cyber-radar-widget.mobile-open.is-collapsed {
+        width: 254px !important;
+      }
+      .cyber-radar-widget.mobile-open.is-collapsed .radar-display-wrapper,
+      .cyber-radar-widget.mobile-open.is-collapsed .radar-legend-bar,
+      .cyber-radar-widget.mobile-open.is-collapsed .radar-control-bar {
+        display: flex !important;
       }
 
       .web-lair-widget {
-        display: none; /* 手机隐藏巢穴统计，节省空间；可按需保留 */
+        display: none; /* 手机隐藏巢穴统计，节省空间 */
       }
 
-      /* 容器底部 padding 足够放下音乐栏 */
+      /* 容器底部留白合理，不被底栏遮挡文字 */
       .container {
-        padding-bottom: 120px;
+        padding-bottom: 72px;
       }
 
       /* 触摸友好 — 蜘蛛可交互文字格增大点击区 */
@@ -1606,12 +1745,15 @@
         <span>🎵 MUSIC</span>
         <span style="font-size: 9.5px; color: var(--text-muted); font-weight: 400;">Arachnid Pulse</span>
       </div>
-      <div class="music-visualizer" id="music-visualizer" title="音频律动">
-        <span class="music-bar"></span>
-        <span class="music-bar"></span>
-        <span class="music-bar"></span>
-        <span class="music-bar"></span>
-        <span class="music-bar"></span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div class="music-visualizer" id="music-visualizer" title="音频律动">
+          <span class="music-bar"></span>
+          <span class="music-bar"></span>
+          <span class="music-bar"></span>
+          <span class="music-bar"></span>
+          <span class="music-bar"></span>
+        </div>
+        <button id="btn-music-close" class="widget-close-btn" title="收起音乐面板">✕</button>
       </div>
     </div>
     <div class="music-controls-row">
@@ -1740,6 +1882,7 @@
       <div style="display:flex; align-items:center; gap:6px;">
         <span class="radar-status-pill" id="radar-status-pill">ACTIVE 360°</span>
         <button id="radar-toggle-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:10px; padding:0 2px;" title="折叠/展开雷达">▼</button>
+        <button id="radar-mobile-close-btn" class="widget-close-btn" title="收起雷达面板">✕</button>
       </div>
     </div>
 
@@ -1775,6 +1918,20 @@
       <button class="radar-btn" id="btn-radar-ping">⚡ 脉冲扫描</button>
     </div>
   </aside>
+
+  <!-- 📱 手机端右下角微型控制胶囊底栏 (解决手机重叠问题，点击展开对应面板) -->
+  <nav class="mobile-bottom-dock" id="mobile-bottom-dock" aria-label="手机悬浮控制">
+    <button class="mobile-dock-pill" id="mobile-pill-music" title="音乐控制器">
+      <span>🎵</span>
+      <span>音乐</span>
+      <span class="dock-pulse-dot" id="dock-music-dot"></span>
+    </button>
+    <button class="mobile-dock-pill" id="mobile-pill-radar" title="星图雷达">
+      <span>🌐</span>
+      <span>雷达</span>
+      <span class="dock-pulse-dot is-active" id="dock-radar-dot"></span>
+    </button>
+  </nav>
 
   <!-- 主页面排版：庞大丰富的马来西亚数码智能资料库 -->
   <main class="container">
@@ -2419,11 +2576,14 @@
           const containerLeft = (width - 880) / 2;
           if (containerLeft > 180) {
             this.hubX = Math.round(containerLeft * 0.48);
+            this.hubY = 380;
+            this.radius = Math.max(90, Math.min(180, containerLeft * 0.75 || 130));
           } else {
-            this.hubX = 110;
+            // 📱 手机/小屏自适应：将上方的蜘蛛网布置在醒目视窗区域，增大半径
+            this.hubX = Math.round(Math.min(135, width * 0.35));
+            this.hubY = 270;
+            this.radius = Math.round(Math.min(180, width * 0.44));
           }
-          this.hubY = 380;
-          this.radius = Math.max(90, Math.min(180, containerLeft * 0.75 || 130));
         }
 
         triggerWobble(strength = 1.0) {
@@ -2483,45 +2643,81 @@
           const screenHubX = this.hubX;
           const screenHubY = this.hubY - scrollY;
 
-          if (screenHubY < -this.radius * 2 || screenHubY > height + this.radius * 2) return;
+          if (screenHubY < -this.radius * 2.5 || screenHubY > height + this.radius * 2.5) return;
 
           ctx.save();
           const wave = Math.sin(this.wobblePhase) * this.wobble * 9;
+          const spokeR = this.radius * 1.35;
+          const now = Date.now();
 
-          // 1. 辐射主蛛丝
+          // 0. 蛛网背景柔光星云晕圈 (增强与页面背景、文字的对比度，让网一目了然)
+          const auraGrad = ctx.createRadialGradient(screenHubX, screenHubY, 0, screenHubX, screenHubY, spokeR * 1.15);
+          auraGrad.addColorStop(0, 'rgba(0, 240, 255, 0.22)');
+          auraGrad.addColorStop(0.35, 'rgba(255, 0, 127, 0.12)');
+          auraGrad.addColorStop(0.75, 'rgba(10, 18, 32, 0.45)');
+          auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = auraGrad;
+          ctx.beginPath();
+          ctx.arc(screenHubX, screenHubY, spokeR * 1.15, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 0.1 脉冲扫描光波环 (每 3.5 秒从网中心向外扩散一次，视觉灵动鲜明)
+          const pulseCycle = (now % 3500) / 3500;
+          const pulseR = pulseCycle * spokeR;
+          const pulseAlpha = Math.sin(pulseCycle * Math.PI) * 0.45;
+          ctx.strokeStyle = `rgba(0, 240, 255, ${pulseAlpha})`;
+          ctx.lineWidth = 2.2;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(screenHubX, screenHubY, pulseR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 1. 辐射主蛛丝 (双层高对比度发光主骨架)
           for (let i = 0; i < this.spokesCount; i++) {
             const angle = (i / this.spokesCount) * Math.PI * 2;
-            const spokeR = this.radius * 1.35;
             const endX = screenHubX + Math.cos(angle) * spokeR;
             const endY = screenHubY + Math.sin(angle) * spokeR;
-
-            ctx.strokeStyle = `rgba(0, 240, 255, ${0.28 + this.wobble * 0.35})`;
-            ctx.shadowColor = '#00f0ff';
-            ctx.shadowBlur = this.wobble > 0.1 ? 8 : 3;
-            ctx.lineWidth = 1;
-
-            ctx.beginPath();
-            ctx.moveTo(screenHubX, screenHubY);
             const cpX = (screenHubX + endX) / 2 + Math.sin(angle) * wave * 0.4;
             const cpY = (screenHubY + endY) / 2 - Math.cos(angle) * wave * 0.4;
+
+            // 1.1 外层发光晕
+            ctx.strokeStyle = `rgba(0, 240, 255, ${0.45 + this.wobble * 0.35})`;
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(screenHubX, screenHubY);
             ctx.quadraticCurveTo(cpX, cpY, endX, endY);
             ctx.stroke();
 
-            ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+            // 1.2 亮白核心丝线 (高锐度，绝不模糊)
+            ctx.strokeStyle = `rgba(180, 245, 255, ${0.85 + this.wobble * 0.15})`;
+            ctx.shadowBlur = 4;
+            ctx.lineWidth = 1.6;
             ctx.beginPath();
-            ctx.arc(endX, endY, 2, 0, Math.PI * 2);
+            ctx.moveTo(screenHubX, screenHubY);
+            ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+            ctx.stroke();
+
+            // 1.3 蛛网锚固端发光节点
+            ctx.fillStyle = '#00f0ff';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(endX, endY, 2.8, 0, Math.PI * 2);
             ctx.fill();
           }
 
-          // 2. 螺旋环状蛛丝
+          // 2. 螺旋环状蛛丝 (带真实自然下垂微弧度 + 交织发光数据露珠节点)
           for (let r = 1; r <= this.ringsCount; r++) {
             const ringRadius = (r / this.ringsCount) * this.radius;
-            const ringAlpha = 0.22 + (r / this.ringsCount) * 0.18 + this.wobble * 0.3;
+            const ringAlpha = 0.55 + (r / this.ringsCount) * 0.25 + this.wobble * 0.2;
+            const isMagenta = r % 2 === 0;
 
-            ctx.strokeStyle = r % 2 === 0 ? `rgba(255, 0, 127, ${ringAlpha})` : `rgba(0, 240, 255, ${ringAlpha})`;
-            ctx.shadowColor = r % 2 === 0 ? '#ff007f' : '#00f0ff';
-            ctx.shadowBlur = 6;
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = isMagenta ? `rgba(255, 0, 127, ${ringAlpha})` : `rgba(0, 240, 255, ${ringAlpha})`;
+            ctx.shadowColor = isMagenta ? '#ff007f' : '#00f0ff';
+            ctx.shadowBlur = 9;
+            ctx.lineWidth = 1.8;
 
             ctx.beginPath();
             for (let i = 0; i <= this.spokesCount; i++) {
@@ -2536,29 +2732,52 @@
               if (i === 0) {
                 ctx.moveTo(x, y);
               } else {
-                ctx.lineTo(x, y);
+                // 真实蛛丝微弧度自然下垂 (Catenary droop sag)
+                const prevAngle = ((spokeIdx - 1 + this.spokesCount) % this.spokesCount / this.spokesCount) * Math.PI * 2;
+                const midAngle = (prevAngle + angle) / 2 + (angle < prevAngle ? Math.PI : 0);
+                const sagR = currentR * 0.95;
+                const cpX = screenHubX + Math.cos(midAngle) * sagR;
+                const cpY = screenHubY + Math.sin(midAngle) * sagR;
+                ctx.quadraticCurveTo(cpX, cpY, x, y);
               }
             }
             ctx.closePath();
             ctx.stroke();
+
+            // 2.1 每个网格交汇点：绘制闪烁的数码露珠 / 全息光节点 (露珠让蛛网轮廓极为显眼夺目)
+            for (let i = 0; i < this.spokesCount; i++) {
+              const angle = (i / this.spokesCount) * Math.PI * 2;
+              const ringW = Math.sin(this.wobblePhase + r) * this.wobble * 5;
+              const currentR = ringRadius + ringW;
+              const nodeX = screenHubX + Math.cos(angle) * currentR;
+              const nodeY = screenHubY + Math.sin(angle) * currentR;
+
+              const twinkle = 0.7 + Math.sin(now * 0.0035 + i * 0.8 + r * 1.2) * 0.3;
+              ctx.fillStyle = isMagenta ? `rgba(255, 80, 160, ${twinkle})` : `rgba(100, 245, 255, ${twinkle})`;
+              ctx.shadowColor = isMagenta ? '#ff007f' : '#00f0ff';
+              ctx.shadowBlur = 6;
+              ctx.beginPath();
+              ctx.arc(nodeX, nodeY, 2.4, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
 
           // 3. 蛛网核心高能发光纽扣
           ctx.fillStyle = '#070b12';
           ctx.strokeStyle = '#ff007f';
           ctx.shadowColor = '#ff007f';
-          ctx.shadowBlur = 12;
-          ctx.lineWidth = 2;
+          ctx.shadowBlur = 16;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(screenHubX, screenHubY, 12, 0, Math.PI * 2);
+          ctx.arc(screenHubX, screenHubY, 13, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
 
           ctx.fillStyle = '#00f0ff';
           ctx.shadowColor = '#00f0ff';
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 10;
           ctx.beginPath();
-          ctx.arc(screenHubX, screenHubY, 4, 0, Math.PI * 2);
+          ctx.arc(screenHubX, screenHubY, 5, 0, Math.PI * 2);
           ctx.fill();
 
           // 4. 挂在蛛网上的资料食物与捕获昆虫
@@ -3132,6 +3351,89 @@
         });
       }
 
+      // ==============================================================
+      // 📱 手机端右下角微型控制胶囊栏交互 (互斥展开，绝不重叠)
+      // ==============================================================
+      const pillMusic = document.getElementById('mobile-pill-music');
+      const pillRadar = document.getElementById('mobile-pill-radar');
+      const dockMusicDot = document.getElementById('dock-music-dot');
+      const dockRadarDot = document.getElementById('dock-radar-dot');
+      const btnMusicClose = document.getElementById('btn-music-close');
+      const btnRadarMobileClose = document.getElementById('radar-mobile-close-btn');
+      const mobileMusicWidget = document.getElementById('cyber-music-widget');
+
+      function updateMobileMusicDot(isPlaying) {
+        if (dockMusicDot) {
+          if (isPlaying) dockMusicDot.classList.add('is-active');
+          else dockMusicDot.classList.remove('is-active');
+        }
+      }
+
+      function closeMobileMusic() {
+        if (mobileMusicWidget) mobileMusicWidget.classList.remove('mobile-open');
+        if (pillMusic) pillMusic.classList.remove('is-active');
+      }
+
+      function closeMobileRadar() {
+        if (cyberRadarWidget) cyberRadarWidget.classList.remove('mobile-open');
+        if (pillRadar) pillRadar.classList.remove('is-active');
+      }
+
+      if (pillMusic && mobileMusicWidget) {
+        pillMusic.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = mobileMusicWidget.classList.contains('mobile-open');
+          if (isOpen) {
+            closeMobileMusic();
+          } else {
+            closeMobileRadar(); // 互斥：关闭雷达，绝不重叠
+            mobileMusicWidget.classList.add('mobile-open');
+            pillMusic.classList.add('is-active');
+          }
+        });
+      }
+
+      if (pillRadar && cyberRadarWidget) {
+        pillRadar.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = cyberRadarWidget.classList.contains('mobile-open');
+          if (isOpen) {
+            closeMobileRadar();
+          } else {
+            closeMobileMusic(); // 互斥：关闭音乐，绝不重叠
+            cyberRadarWidget.classList.add('mobile-open');
+            cyberRadarWidget.classList.remove('is-collapsed');
+            pillRadar.classList.add('is-active');
+          }
+        });
+      }
+
+      if (btnMusicClose) {
+        btnMusicClose.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeMobileMusic();
+        });
+      }
+
+      if (btnRadarMobileClose) {
+        btnRadarMobileClose.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeMobileRadar();
+        });
+      }
+
+      // 手机端点击外部区域自动收起展开的浮窗
+      window.addEventListener('click', (e) => {
+        if (window.innerWidth <= 600) {
+          if (!e.target.closest('#cyber-music-widget') && !e.target.closest('#mobile-pill-music')) {
+            closeMobileMusic();
+          }
+          if (!e.target.closest('#cyber-radar-widget') && !e.target.closest('#mobile-pill-radar')) {
+            closeMobileRadar();
+          }
+        }
+      });
+
       // ============================================================
       // 🌙 全局 Idle 检测 — 5秒无操作自动隐藏所有 Widget
       // 任意鼠标/触摸活动立即恢复，widget hover 时也恢复
@@ -3150,6 +3452,10 @@
 
         function setIdle(idle) {
           isIdle = idle;
+          if (idle && window.innerWidth <= 600) {
+            closeMobileMusic();
+            closeMobileRadar();
+          }
           widgetsToIdle.forEach(w => {
             if (idle) {
               w.classList.add('is-idle');
@@ -4920,6 +5226,9 @@
           if (musicWidget) {
             if (playing) musicWidget.classList.add('is-playing');
             else musicWidget.classList.remove('is-playing');
+          }
+          if (typeof updateMobileMusicDot === 'function') {
+            updateMobileMusicDot(playing);
           }
         }
 
