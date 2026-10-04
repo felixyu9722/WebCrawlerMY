@@ -2614,20 +2614,45 @@
           const msgEl = document.getElementById('web-status-msg');
           if (countEl) countEl.innerText = `${this.cachedPrey.length} 件`;
           if (msgEl) {
-            msgEl.innerText = `成功储食！(已获 ${this.cachedPrey.length} 份数据食物)`;
-            msgEl.style.color = '#ff007f';
-            setTimeout(() => {
-              msgEl.innerText = '等待投喂 (每30秒飞入小昆虫)';
-              msgEl.style.color = 'var(--accent-lime)';
-            }, 3000);
+            if (this.cachedPrey.length >= 20) {
+              msgEl.innerText = '🧹 满20件！蜘蛛正在赶来清理垃圾...';
+              msgEl.style.color = '#ffff00';
+            } else {
+              msgEl.innerText = `成功储食！(已获 ${this.cachedPrey.length}/20 份数据食物)`;
+              msgEl.style.color = '#ff007f';
+              setTimeout(() => {
+                if (msgEl && this.cachedPrey.length < 20) {
+                  msgEl.innerText = '等待投喂 (每30秒飞入小昆虫)';
+                  msgEl.style.color = 'var(--accent-lime)';
+                }
+              }, 3000);
+            }
+          }
+
+          // 达到 20 件，立即通知蜘蛛启动大扫除与狂欢跳舞程序
+          if (this.cachedPrey.length >= 20) {
+            if (typeof crawler !== 'undefined' && crawler) {
+              crawler.triggerWebCleanup();
+            }
           }
         }
 
         clear() {
           this.cachedPrey = [];
-          this.triggerWobble(1.2);
+          this.triggerWobble(2.5);
           const countEl = document.getElementById('web-prey-count');
+          const msgEl = document.getElementById('web-status-msg');
           if (countEl) countEl.innerText = '0 件';
+          if (msgEl) {
+            msgEl.innerText = '🎉 垃圾已清理一空！蜘蛛兴奋跳舞中 💃';
+            msgEl.style.color = '#00f0ff';
+            setTimeout(() => {
+              if (msgEl) {
+                msgEl.innerText = '等待投喂 (满20件蜘蛛自动清理并跳舞)';
+                msgEl.style.color = 'var(--accent-lime)';
+              }
+            }, 6000);
+          }
         }
 
         update() {
@@ -3506,6 +3531,23 @@
         resetIdleTimer();
       })();
 
+      // 🕸️ 点击蛛网食物库卡片快捷一键填满20件测试大扫除与狂欢跳舞
+      const webLairCard = document.getElementById('web-lair-widget');
+      if (webLairCard) {
+        webLairCard.style.cursor = 'pointer';
+        webLairCard.title = '点击一键加满20件数据食物，召唤蜘蛛清理并跳舞！';
+        webLairCard.addEventListener('click', (e) => {
+          e.stopPropagation();
+          while (webLair.cachedPrey.length < 20) {
+            webLair.stashPrey({
+              text: `PREY_#${webLair.cachedPrey.length + 1} ↗`,
+              bgCol: webLair.cachedPrey.length % 2 === 0 ? '#ff1e42' : 'rgba(20, 26, 36, 0.92)',
+              textCol: '#ffffff'
+            });
+          }
+        });
+      }
+
       // 8. 实体数据药丸 (用户指令：抓取后带着的文字无繁重发光效果，以素雅暗灰色显示，轻量流畅)
       class UserTetheredPill {
         constructor(text, bgCol, textCol, targetX, targetY, scale = 1.0) {
@@ -3719,6 +3761,33 @@
           this.silkAnchorY = 0;
           this.rappelStartY = 0;
           this.rappelTargetY = 0;
+
+          // 🕸️ 蛛网大扫除与狂欢跳舞状态
+          this.isCleaningWeb = false;
+          this.isDancing = false;
+          this.danceTimer = 0;
+        }
+
+        triggerWebCleanup() {
+          if (this.isCleaningWeb || this.isDancing) return;
+          this.isCleaningWeb = true;
+          this.trickState = null;
+          this.isHuntingFly = false;
+          this.isCarryingFly = false;
+          this.isStashingFood = false;
+          this.isInspectingEmptySpot = false;
+          if (this.currentTarget && this.currentTarget.el) {
+            this.currentTarget.el.classList.remove('is-being-scanned');
+          }
+          this.currentTarget = null;
+          this.isScanning = false;
+          this.scanProgress = 0;
+          this.speedMultiplier = 2.4; // 兴奋极速赶回蛛网！
+          this.destX = webLair.hubX;
+          this.destY = webLair.hubY;
+          playSound('predator_alert', this.scale);
+          document.getElementById('hud-status-badge').innerText = '🧹 蛛网满20件！前去大扫除...';
+          logSnifferEvent('CLEANUP', '🕸️ 蛛网累积达20件！机械蛛启动回巢大扫除与庆祝舞', 'RUSH TO WEB');
         }
 
         startTrick(trickType) {
@@ -3834,6 +3903,87 @@
 
         update(targets) {
           this.stateTimer++;
+
+          // ==========================================
+          // 💃 蛛网清理完成后的兴奋跳舞状态！
+          // ==========================================
+          if (this.isDancing) {
+            this.danceTimer++;
+
+            // 1. 欢快自转与左右摇摆
+            this.angle += Math.sin(this.danceTimer * 0.18) * 0.35 + 0.12;
+
+            // 2. 欢快弹跳与体型欢呼放大
+            this.jumpScale = 1.0 + Math.abs(Math.sin(this.danceTimer * 0.22)) * 0.32;
+
+            // 3. 八条肢足踏步律动（孔雀蜘蛛式兴奋踏步狂欢）
+            for (let i = 0; i < this.legs.length; i++) {
+              const leg = this.legs[i];
+              const tap = Math.sin(this.danceTimer * 0.45 + i * 1.2) * 18 * this.scale;
+              leg.liftZ = Math.max(0, tap);
+              leg.footX += (Math.random() - 0.5) * 3 * this.scale;
+              leg.footY += (Math.random() - 0.5) * 3 * this.scale;
+            }
+
+            // 4. 周期性在蜘蛛周围爆开发光数码彩花烟火
+            if (this.danceTimer % 25 === 0) {
+              const fx = this.x + (Math.random() - 0.5) * 50;
+              const fy = this.y + (Math.random() - 0.5) * 50;
+              triggerFirework(fx, fy, Math.random() < 0.5 ? '#ff007f' : '#00f0ff');
+              playSound('step', this.scale * 1.6);
+            }
+
+            // 5. 蛛网随蜘蛛舞蹈兴奋震颤
+            if (this.danceTimer % 15 === 0) {
+              webLair.triggerWobble(0.4);
+            }
+
+            // 6. 跳舞结束，心满意足恢复漫游
+            if (this.danceTimer >= 220) {
+              this.isDancing = false;
+              this.jumpScale = 1.0;
+              this.speedMultiplier = 1.0;
+              this.destX = 100 + Math.random() * (width - 200);
+              this.destY = 320 + Math.random() * 400;
+              document.getElementById('hud-status-badge').innerText = this.cfg.name.split('/')[0].trim();
+              logSnifferEvent('ROAM', '🏁 兴奋跳舞圆满结束！蛛网干净清爽，蜘蛛继续自主漫游', 'RESUME');
+            }
+            return;
+          }
+
+          // ==========================================
+          // 🧹 蛛网满20件时赶往大扫除
+          // ==========================================
+          if (this.isCleaningWeb) {
+            this.destX = webLair.hubX;
+            this.destY = webLair.hubY;
+            const distToWeb = Math.hypot(this.x - webLair.hubX, this.y - webLair.hubY);
+            if (distToWeb < 45 * this.scale) {
+              // 抵达蛛网！瞬间清理所有垃圾并触发大烟花与狂欢跳舞
+              this.isCleaningWeb = false;
+              this.isDancing = true;
+              this.danceTimer = 0;
+
+              // 绚烂多重数码烟火绽放！
+              triggerFirework(webLair.hubX, webLair.hubY, '#00f0ff');
+              triggerFirework(webLair.hubX + 30, webLair.hubY - 20, '#ff007f');
+              triggerFirework(webLair.hubX - 30, webLair.hubY + 20, '#39ff14');
+              triggerFirework(webLair.hubX, webLair.hubY - 35, '#ffff00');
+
+              // 清理垃圾：清空蛛网并让网弹性晃动
+              webLair.clear();
+              playSound('predator_alert', this.scale);
+
+              document.getElementById('hud-status-badge').innerText = '🎉 垃圾清理完毕！狂欢跳舞中... 💃';
+              logSnifferEvent('CELEBRATE', '💃 蛛网20件垃圾清理完毕！蜘蛛兴奋跳舞狂欢', 'DANCING');
+              return;
+            }
+          }
+
+          // 自动检测蛛网是否已满20件
+          if (webLair.cachedPrey.length >= 20 && !this.isCleaningWeb && !this.isDancing) {
+            this.triggerWebCleanup();
+          }
 
           // ==========================================
           // 0. 特技状态机 (飞扑突脸吓人 / 隐匿消散吐丝倒挂)
@@ -4757,9 +4907,12 @@
             const flicker = 0.96 + Math.sin(this.stateTimer * 0.1) * 0.04;
 
             // 配合整体蜘蛛色调的淡雅透明色 (极低不透明度，通透不遮挡文字)
-            const beamMainCol = this.eyesRed 
+            let beamMainCol = this.eyesRed 
               ? 'rgba(255, 30, 66, 0.09)' 
               : (this.cfg.eyeBeamColor || 'rgba(0, 220, 255, 0.075)');
+            if (this.isDancing) {
+              beamMainCol = `hsla(${(Date.now() * 0.4) % 360}, 100%, 65%, 0.16)`;
+            }
             const beamCoreCol = this.eyesRed 
               ? 'rgba(255, 180, 195, 0.22)' 
               : (this.cfg.eyeBeamCoreColor || 'rgba(220, 250, 255, 0.2)');
@@ -4825,7 +4978,10 @@
           // ==========================================
           // 前部复眼传感器与白炽晶状体 (Front Optical Sensors with Specular Glint)
           // ==========================================
-          const eyeColor = this.eyesRed ? '#ff003c' : '#00f0ff';
+          let eyeColor = this.eyesRed ? '#ff003c' : '#00f0ff';
+          if (this.isDancing) {
+            eyeColor = `hsl(${(Date.now() * 0.4) % 360}, 100%, 65%)`;
+          }
           ctx.fillStyle = eyeColor;
           ctx.shadowColor = eyeColor;
           ctx.shadowBlur = (this.eyesRed ? 22 : 14) * sc;
@@ -4863,7 +5019,9 @@
           const badgeFontSize = Math.round(9.5 * Math.min(1.4, sc));
           ctx.font = `bold ${badgeFontSize}px "JetBrains Mono", monospace`;
           let badgeText = this.bodyBadge;
-          if (this.isHuntingFly) badgeText = '🚨 HUNTING INSECT!';
+          if (this.isDancing) badgeText = '💃 CELEBRATION DANCE! 🎉';
+          else if (this.isCleaningWeb) badgeText = '🧹 CLEANING WEB LAIR!';
+          else if (this.isHuntingFly) badgeText = '🚨 HUNTING INSECT!';
           else if (this.isCarryingFly) badgeText = '🪰 CARRYING PREY...';
           else if (this.isStashingFood) badgeText = '🕸️ STASHING PREY...';
 
@@ -4873,7 +5031,9 @@
           const by = screenY - 30 * sc;
 
           ctx.fillStyle = 'rgba(8, 12, 18, 0.92)';
-          const bColor = this.eyesRed ? '#ff1e42' : (this.isStashingFood ? '#ff007f' : this.cfg.bodyBorder);
+          let bColor = this.eyesRed ? '#ff1e42' : (this.isStashingFood ? '#ff007f' : this.cfg.bodyBorder);
+          if (this.isDancing) bColor = `hsl(${(Date.now() * 0.4) % 360}, 100%, 60%)`;
+          else if (this.isCleaningWeb) bColor = '#00f0ff';
           ctx.strokeStyle = bColor;
           ctx.shadowColor = bColor;
           ctx.shadowBlur = 6 * sc;
